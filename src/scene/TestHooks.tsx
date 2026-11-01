@@ -2,6 +2,7 @@ import { useThree } from '@react-three/fiber'
 import { useEffect } from 'react'
 import { Vector3 } from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
+import { hasFired } from '../sim/fire'
 import type { Scenario } from '../sim/scenario'
 import type { DrillHole } from '../sim/types'
 import { useBlast } from '../state/store'
@@ -48,7 +49,7 @@ export function TestHooks({ scenario }: { scenario: Scenario }) {
         let best: { id: string; x: number; y: number } | null = null
         let bestD = Infinity
         for (const h of scenario.holes) {
-          if (t > 0 && t >= h.delayMs) continue
+          if (hasFired(h.delayMs, t)) continue
           const p = project(h)
           if (!p || document.elementFromPoint(p.x, p.y) !== gl.domElement) continue
           const d = Math.hypot(p.x - cx, p.y - cy)

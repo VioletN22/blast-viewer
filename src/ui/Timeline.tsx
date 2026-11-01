@@ -3,7 +3,7 @@ import { Color } from 'three'
 import { lastFireMs } from '../sim/fire'
 import { useBlast } from '../state/store'
 import { delayColor } from '../scene/colors'
-import { fireTicks, formatReadout, PAGE_STEP_MS, SPEEDS, STEP_MS } from './timelineFormat'
+import { fireTicks, formatReadout, PAGE_STEP_MS, SPEEDS, STEP_MS } from '../lib/timelineFormat'
 
 function togglePlay() {
   const s = useBlast.getState()

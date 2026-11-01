@@ -1,8 +1,8 @@
 import { create } from 'zustand'
-import { buildScenario, type Scenario } from '../sim/scenario'
-import { DEFAULT_SPEED } from '../ui/timelineFormat'
+import { DEFAULT_SPEED } from '../lib/timelineFormat'
+import { buildScenario, type Scale, type Scenario } from '../sim/scenario'
 
-export type Scale = 1 | 2 | 3 | 4
+export type { Scale }
 export type ColorBy = 'movement' | 'delay'
 
 export interface BlastState {

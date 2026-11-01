@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react'
+import { hasFired } from '../sim/fire'
 import { useBlast } from '../state/store'
 
 /** Details of the selected hole and whether it has fired at the current time. Escape or the close button deselects. */
@@ -7,7 +8,7 @@ export function HoleCard() {
   const id = useBlast((s) => s.selectedHoleId)
   const hole = useMemo(() => (id && scenario ? scenario.holes.find((h) => h.id === id) : undefined), [id, scenario])
   // A boolean selector: the card re-renders when the hole fires, not on every frame of playback.
-  const fired = useBlast((s) => !!hole && s.timeMs > 0 && s.timeMs >= hole.delayMs)
+  const fired = useBlast((s) => !!hole && hasFired(hole.delayMs, s.timeMs))
 
   useEffect(() => {
     if (!hole) return

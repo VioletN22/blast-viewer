@@ -1,9 +1,7 @@
 import { flightFor } from '../sim/blast'
+import { easeOut } from '../sim/ease'
 import { digLine, holeIndex, nearestHole } from '../sim/field'
 import type { Scenario } from '../sim/scenario'
-
-/** Same ease-out as blast.ts positionAt, so the zone keeps pace with the rock around it. */
-const ease = (u: number) => 1 - (1 - u) * (1 - u)
 
 export interface DigZone {
   from: Float32Array
@@ -41,7 +39,7 @@ export function digZoneAt(z: DigZone, timeMs: number, out: Float32Array): void {
   for (let i = 0; i < fire.length; i++) {
     const local = timeMs - fire[i]
     // The end test first, so a point clamped to zero flight lands at t = fire.
-    const u = local >= flight[i] && local >= 0 ? 1 : local <= 0 ? 0 : ease(local / flight[i])
+    const u = local >= flight[i] && local >= 0 ? 1 : local <= 0 ? 0 : easeOut(local / flight[i]) // the fragments' ease, so the zone keeps pace with the rock
     const o = i * 3
     out[o] = from[o] + (to[o] - from[o]) * u
     out[o + 1] = from[o + 1] + (to[o + 1] - from[o + 1]) * u

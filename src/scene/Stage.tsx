@@ -40,7 +40,7 @@ function InvalidateOnChange() {
 }
 
 /** Bench-top height at (x, z): the pre-blast terrain, which is never below the post-blast ground. */
-const groundAt = (sc: Scenario, x: number, z: number) => sc.terrain.heightAt(x, z)
+const preBlastGroundAt = (sc: Scenario, x: number, z: number) => sc.terrain.heightAt(x, z)
 
 const LANDSCAPE_DIR = new Vector3(0.28, 0.62, 0.73)
 const PORTRAIT_DIR = new Vector3(0.2, 0.78, 0.6)
@@ -57,7 +57,7 @@ function Framing({ scenario }: { scenario: Scenario }) {
     const aspect = size.width / Math.max(1, size.height)
     const tz = (ext.minZ + ext.maxZ) / 2 - 6
     // Target on the bench surface (the bench top behind the crest), never inside the rock.
-    const target = new Vector3(ext.cx, groundAt(scenario, ext.cx, tz), tz)
+    const target = new Vector3(ext.cx, preBlastGroundAt(scenario, ext.cx, tz), tz)
     // Look in from the free face, a little off-axis, about 38 degrees down. A portrait frame
     // is bound by its width, which left a tall band of empty sky: there the view looks down
     // more steeply (about 50 degrees) and the side margin shrinks, so the block fills about
@@ -125,8 +125,8 @@ function CameraClamp({ scenario }: { scenario: Scenario }) {
         t.x = x
         t.z = z
       }
-      t.y = groundAt(scenario, t.x, t.z)
-      const floor = groundAt(scenario, camera.position.x, camera.position.z) + CAMERA_CLEARANCE_M
+      t.y = preBlastGroundAt(scenario, t.x, t.z)
+      const floor = preBlastGroundAt(scenario, camera.position.x, camera.position.z) + CAMERA_CLEARANCE_M
       if (camera.position.y < floor) camera.position.y = floor
     }
     controls.addEventListener('change', clamp)

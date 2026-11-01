@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { deviceDefaults, fireTicks, formatReadout, SPEEDS, DEFAULT_SPEED } from '../timelineFormat'
+import { deviceDefaults } from '../device'
+import { fireTicks, formatReadout, SPEEDS, DEFAULT_SPEED } from '../timelineFormat'
 
 describe('timeline format', () => {
   it('readout uses grouped whole milliseconds', () => {

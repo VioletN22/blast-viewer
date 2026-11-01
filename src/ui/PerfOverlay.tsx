@@ -1,6 +1,6 @@
 import { usePerf } from '../state/perf'
 import { useBlast } from '../state/store'
-import { formatPerf } from './perfFormat'
+import { formatPerf } from '../lib/perfFormat'
 
 /** Small monospace stats panel, top right of the viewport. */
 export function PerfOverlay() {
