@@ -85,7 +85,8 @@ test('stress scale raises instances', async ({ page }) => {
   await page.getByRole('checkbox', { name: 'Show performance stats' }).check({ force: true })
   const base = await overlayInstances(page)
   await page.getByRole('radio', { name: 'Stress scale 4' }).check()
-  await expect.poll(() => overlayInstances(page)).toBeGreaterThan(base)
+  // The scale 4 rebuild plus a sampled frame is slow under software GL on CI runners.
+  await expect.poll(() => overlayInstances(page), { timeout: 20_000 }).toBeGreaterThan(base)
 })
 
 test('no console errors on load', async ({ page }) => {
