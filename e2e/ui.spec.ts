@@ -108,3 +108,20 @@ test('holes are keyboard-selectable from the Holes list', async ({ page }) => {
   await expect(page.getByRole('region', { name: `Hole ${id}` })).toBeFocused()
   expect(await page.evaluate(() => (window as unknown as Hooks).__blast.getState().playing)).toBe(false)
 })
+
+test.describe('?t= links', () => {
+  // Motion allowed, so the test also shows that a linked time is not overridden by autoplay.
+  test.use({ reducedMotion: 'no-preference' })
+
+  test('?t=<ms> and ?t=end open at that time and do not autoplay', async ({ page }) => {
+    await page.goto('./?t=500')
+    await expect(readout(page)).toHaveText(/^t = 500 ms \//)
+    await page.waitForTimeout(1500)
+    await expect(readout(page)).toHaveText(/^t = 500 ms \//)
+    expect(await page.evaluate(() => (window as unknown as Hooks).__blast.getState().playing)).toBe(false)
+
+    await page.goto('./?t=end')
+    await expect(readout(page)).toHaveText(/^t = ([\d,]+) ms \/ \1 ms$/)
+    await expect(readout(page)).not.toHaveText(/^t = 0 ms/)
+  })
+})
