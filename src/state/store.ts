@@ -50,7 +50,7 @@ export const useBlast = create<BlastState>()((set, get) => ({
   colorBy: 'movement',
   showBefore: false,
   showVectors: true,
-  showDigLine: false,
+  showDigLine: true,
   showPerf: false,
   scale: 1,
   pendingScale: null,
