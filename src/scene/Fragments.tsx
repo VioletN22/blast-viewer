@@ -4,10 +4,9 @@ import { BufferAttribute, Color, IcosahedronGeometry, InstancedMesh, MeshStandar
 import { mulberry32, randRange } from '../sim/rng'
 import { positionAt } from '../sim/blast'
 import type { Scenario } from '../sim/scenario'
-import { DEFAULT_PATTERN } from '../sim/types'
 import { useBlast } from '../state/store'
 import { delayColor, rampColor } from './colors'
-import { firstFireMs, lastFireMs } from '../sim/fire'
+import { firstFireMs, hasFired, lastFireMs } from '../sim/fire'
 
 /** Low-poly rock: an icosahedron with its vertices pushed in and out a little, flat shaded. */
 function rockGeometry() {
@@ -53,7 +52,7 @@ export function Fragments({ scenario }: { scenario: Scenario }) {
     const n = f.count
     const rng = mulberry32(terrain.options.seed ^ 0x5bd1e995)
     // Size so the rocks roughly fill the blasted volume: cube root of the volume per fragment.
-    const block = holes.length > 0 ? (scenario.params.pattern?.burden ?? DEFAULT_PATTERN.burden) * (scenario.params.pattern?.spacing ?? DEFAULT_PATTERN.spacing) : 0
+    const block = holes.length > 0 ? scenario.pattern.burden * scenario.pattern.spacing : 0
     const vol = (block * holes.length * terrain.options.benchHeight) / Math.max(1, n)
     const r = 0.5 * Math.cbrt(Math.max(1, vol)) * 1.05
     const scale = new Float32Array(n * 3)
@@ -73,7 +72,7 @@ export function Fragments({ scenario }: { scenario: Scenario }) {
       spin[i] = randRange(rng, 1.5, 5) * (rng() < 0.5 ? -1 : 1)
     }
     return { scale, quat, axis, spin }
-  }, [f, holes, terrain, scenario.params])
+  }, [f, holes, terrain, scenario.pattern])
 
   const tmp = useMemo(
     () => ({
@@ -98,7 +97,7 @@ export function Fragments({ scenario }: { scenario: Scenario }) {
     if (last.t === timeMs && last.colorBy === colorBy) return
     last.t = timeMs
     last.colorBy = colorBy
-    const visible = timeMs > 0 && timeMs >= tmp.firstFire
+    const visible = hasFired(tmp.firstFire, timeMs)
     mesh.visible = visible
     if (!visible) return
     const inv = f.maxMagnitude > 0 ? 1 / f.maxMagnitude : 0

@@ -1,17 +1,23 @@
 name: CI
 
+# Pushes to main, and pull requests (whose branches are not built a second time on push).
 on:
   push:
+    branches: [main]
   pull_request:
+
+permissions:
+  contents: read
 
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       BUILD_BUDGET_MS: 4000
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 24
           cache: npm
@@ -21,6 +27,50 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       # playwright.config's webServer rebuilds dist with VITE_E2E=1 (the e2e build, with the test
-      # hooks) and serves it; with CI set it never reuses a server. The deployed build has no hooks.
-      - name: Playwright (e2e build; smoke, ui and robust specs)
-        run: npx playwright test e2e/smoke.spec.ts e2e/ui.spec.ts e2e/robust.spec.ts
+      # hooks) and serves it; with CI set it never reuses a server. Every spec in e2e/ runs.
+      - name: Playwright (e2e build)
+        run: npx playwright test
+      - name: Upload the Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report
+          retention-days: 14
+
+  # Deploy is a job in this workflow, gated with `needs: test`, rather than a separate
+  # workflow triggered by workflow_run: a needs edge cannot deploy a commit whose tests
+  # failed or were skipped, it always builds the commit that was tested (workflow_run
+  # runs the default branch's workflow file and has to be pointed at head_sha), and the
+  # test and the deploy show as one run on the commit. Only pushes to main deploy.
+  deploy:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    # One deploy at a time; a newer push waits rather than cancelling a deploy in progress.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      # A fresh production build: the test job's dist is the e2e build, with test hooks.
+      - run: npm run build
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,12 +1,16 @@
 import { simulateBlast, type Fragments } from './blast'
-import { validateScenarioParams } from './loadScenario'
+import { lastFireMs } from './fire'
 import { generatePattern } from './pattern'
 import { generateTerrain } from './terrain'
+import { validateScenarioParams } from './validate'
 import { DEFAULT_PATTERN, DEFAULT_TERRAIN, type DrillHole, type PatternOptions, type Terrain, type TerrainOptions } from './types'
+
+/** Stress scale: 1 is the default scenario, 4 the heaviest. */
+export type Scale = 1 | 2 | 3 | 4
 
 export interface ScenarioParams {
   seed: number
-  scale: 1 | 2 | 3 | 4
+  scale: Scale
   terrain?: Partial<TerrainOptions>
   pattern?: Partial<PatternOptions>
 }
@@ -14,6 +18,8 @@ export interface ScenarioParams {
 export interface Scenario {
   terrain: Terrain
   holes: DrillHole[]
+  /** The pattern options the holes were built with: params.pattern resolved over the defaults, with the scale's columns. */
+  pattern: PatternOptions
   fragments: Fragments
   durationMs: number
   params: ScenarioParams
@@ -35,14 +41,15 @@ export function buildScenario(p: ScenarioParams): Scenario {
   validateScenarioParams(p)
   const s = p.scale - 1
   const cols = COLS_BY_SCALE[s]
-  const pattern: Partial<PatternOptions> = {
+  const pattern: PatternOptions = {
+    ...DEFAULT_PATTERN,
     ...p.pattern,
     // Scale always sets the column count, overriding any pattern.cols in the params.
     cols,
     // Fire from the middle column unless the params name one.
     initiationCol: p.pattern?.initiationCol ?? Math.floor(cols / 2),
   }
-  const spacing = pattern.spacing ?? DEFAULT_PATTERN.spacing
+  const { spacing } = pattern
   const span = (cols - 1) * spacing + spacing / 2
   const baseWidth = p.terrain?.width ?? DEFAULT_TERRAIN.width
   const terrain = generateTerrain({
@@ -54,9 +61,7 @@ export function buildScenario(p: ScenarioParams): Scenario {
   })
   const holes = generatePattern(terrain, pattern)
   const fragments = simulateBlast(terrain, holes, { fragmentsPerHole: FRAGMENTS_BY_SCALE[s], seed: p.seed })
-  let lastFire = 0
-  for (const h of holes) if (h.delayMs > lastFire) lastFire = h.delayMs
   let maxFlight = 0
   for (let i = 0; i < fragments.count; i++) if (fragments.flightMs[i] > maxFlight) maxFlight = fragments.flightMs[i]
-  return { terrain, holes, fragments, durationMs: lastFire + maxFlight + 500, params: p }
+  return { terrain, holes, fragments, pattern, durationMs: lastFireMs(holes) + maxFlight + 500, params: p }
 }

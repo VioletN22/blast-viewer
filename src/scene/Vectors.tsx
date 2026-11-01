@@ -2,7 +2,7 @@ import { useFrame } from '@react-three/fiber'
 import { useEffect, useMemo } from 'react'
 import { BufferAttribute, BufferGeometry, Color, LineBasicMaterial, LineSegments } from 'three'
 import { positionAt } from '../sim/blast'
-import { firstFireMs } from '../sim/fire'
+import { firstFireMs, hasFired } from '../sim/fire'
 import type { Scenario } from '../sim/scenario'
 import { useBlast } from '../state/store'
 import { rampColor } from './colors'
@@ -40,7 +40,7 @@ export function Vectors({ scenario }: { scenario: Scenario }) {
   useFrame(() => {
     // The only visibility gate: unmounting is not used, so the buffers survive toggling.
     const { timeMs, showVectors } = useBlast.getState()
-    const visible = showVectors && timeMs > 0 && timeMs >= firstFire
+    const visible = showVectors && hasFired(firstFire, timeMs)
     obj.visible = visible
     if (!visible) {
       state.last = -1

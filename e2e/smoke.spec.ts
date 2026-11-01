@@ -12,3 +12,15 @@ test('app root renders with no console errors', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Bench blast viewer' })).toBeVisible()
   expect(errors).toEqual([])
 })
+
+test('the static page has loading text, a noscript line and share metadata', async ({ page, request }) => {
+  const html = await (await request.get('./')).text()
+  expect(html).toContain('<div id="root"><p class="boot">Loading the 3D viewer…</p></div>')
+  expect(html).toContain('<noscript>')
+  expect(html).toMatch(/<meta name="description" content="[^"]+"/)
+  expect(html).toContain('<meta property="og:image" content="https://violetn22.github.io/blast-viewer/fallback/poster.jpg"')
+  // React replaces the loading line.
+  await page.goto('./')
+  await expect(page.getByTestId('app-root')).toBeVisible()
+  await expect(page.getByText('Loading the 3D viewer…')).toHaveCount(0)
+})

@@ -4,11 +4,6 @@ import { useBlast } from '../state/store'
 /** Pause after the first scenario loads, so the opening frame registers before the blast starts. */
 export const AUTOPLAY_DELAY_MS = 800
 
-/** Autoplay is a motion effect: off when the viewer asks for reduced motion. */
-export function shouldAutoplay(reducedMotion: boolean): boolean {
-  return !reducedMotion
-}
-
 const REDUCED_QUERY = '(prefers-reduced-motion: reduce)'
 const reducedQuery = () => (typeof window !== 'undefined' && typeof window.matchMedia === 'function' ? window.matchMedia(REDUCED_QUERY) : null)
 
@@ -47,7 +42,8 @@ export function useAutoplay(enabled: boolean) {
     // Only the first scenario: a later rebuild (scale change) never restarts playback.
     if (first.current && first.current !== scenario) return
     first.current = scenario
-    if (!shouldAutoplay(reduced)) {
+    // Autoplay is a motion effect: off when the viewer asks for reduced motion.
+    if (reduced) {
       decided.current = true
       return
     }

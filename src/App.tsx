@@ -5,8 +5,8 @@ import { Stage } from './scene/Stage'
 import { StageBoundary } from './scene/StageBoundary'
 import { TEST_HOOKS } from './scene/TestHooks'
 import { useBlast } from './state/store'
+import { windowDefaults } from './lib/device'
 import { hasWebGL } from './lib/webgl'
-import type { Scenario } from './sim/scenario'
 import { Controls } from './ui/Controls'
 import { Fallback } from './ui/Fallback'
 import { Header } from './ui/Header'
@@ -14,7 +14,6 @@ import { HoleCard } from './ui/HoleCard'
 import { Legend } from './ui/Legend'
 import { PerfOverlay } from './ui/PerfOverlay'
 import { Timeline } from './ui/Timeline'
-import { deviceDefaults } from './ui/timelineFormat'
 import { useAutoplay } from './ui/useAutoplay'
 
 if (TEST_HOOKS) {
@@ -30,14 +29,13 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   // Probed once: without WebGL the page is the header plus a recording of the live viewer.
   const [webgl] = useState(hasWebGL)
-  // The scenario the renderer failed on (an error or a lost context); a new scenario retries.
-  const [failedOn, setFailedOn] = useState<Scenario | null>(null)
-  const stageFailed = !!scenario && failedOn === scenario
   useAutoplay(linkedTime === null && webgl)
 
   useEffect(() => {
+    // Without WebGL nothing reads the scenario, so it is never fetched or built.
+    if (!webgl) return
     // Phones start light (scale 1, no vectors); applied once, before the scenario loads.
-    const d = deviceDefaults(window.innerWidth)
+    const d = windowDefaults()
     if (d.scale) useBlast.getState().setScale(d.scale)
     if (d.showVectors === false) useBlast.getState().setShowVectors(false)
     let cancelled = false
@@ -54,24 +52,21 @@ export default function App() {
     return () => {
       cancelled = true
     }
-  }, [])
+  }, [webgl])
 
   return (
     <main data-testid="app-root" className="app">
       <Header />
       <section className="viewport" aria-label="3D bench view">
-        {!webgl && <Fallback />}
-        {webgl && scenario && (
-          <StageBoundary resetKey={scenario} fallback={<Fallback retry />} onError={() => setFailedOn(scenario)}>
-            <Stage scenario={scenario} />
-          </StageBoundary>
-        )}
-        {webgl && !stageFailed && <PerfOverlay />}
+        {!webgl && <Fallback reason="no-webgl" />}
         {webgl && scenario && (
           <>
-            {/* Kept over the fallback: another stress scale is a new scenario, which retries the live view. */}
+            {/* Outside the boundary, so it stays over the fallback: another stress scale is a new scenario, which retries the live view. */}
             <Controls />
-            {!stageFailed && (
+            {/* The overlay and the dock sit inside the boundary, so they go in the same render as the canvas, with no frame of dock over the fallback. */}
+            <StageBoundary resetKey={scenario} fallback={<Fallback reason="stopped" />}>
+              <Stage scenario={scenario} />
+              <PerfOverlay />
               <div className="dock">
                 <div className="dock-row">
                   <Legend />
@@ -79,7 +74,7 @@ export default function App() {
                 </div>
                 <Timeline />
               </div>
-            )}
+            </StageBoundary>
           </>
         )}
         {webgl && !scenario && !error && <p className="status">Building scenario…</p>}

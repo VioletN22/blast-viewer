@@ -1,19 +1,24 @@
 // Records the no-WebGL fallback: an 1080p loop of the default scenario, frame by frame, then
 // ffmpeg to H.264 (yuv420p, +faststart, under 8 MB) and a poster JPG from the final frame.
 //
-// Deterministic: the e2e build's window.__blast is paused and stepped with setTime for every
-// frame, and each frame is a page.screenshot (Playwright's own video is too low a bitrate).
+// Frame-stepped and repeatable: the e2e build's window.__blast is paused and stepped with setTime
+// for every frame, and each frame is a page.screenshot (Playwright's own video is too low a
+// bitrate). The output is not byte-for-byte identical across machines: it depends on the GPU,
+// the ffmpeg build and the settle time.
 //   VITE_E2E=1 npm run build && npm run preview -- --port 4173
 //   node scripts/capture-fallback.mjs [baseUrl]
-// Frames go to a temporary directory outside the repo, deleted at the end.
+// ffmpeg comes from the FFMPEG environment variable, or `ffmpeg` on PATH.
+// Frames go to a temporary directory outside the repo, deleted at the end. The video and poster
+// are encoded to temporary files next to the committed ones and renamed over them only when
+// everything has succeeded, so a failed run leaves the committed files as they were.
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { chromium } from '@playwright/test'
+import { launch } from './browser.mjs'
 
 const base = process.argv[2] ?? 'http://localhost:4173/blast-viewer/'
-const FFMPEG = process.env.FFMPEG ?? '/opt/homebrew/bin/ffmpeg'
+const FFMPEG = process.env.FFMPEG || 'ffmpeg'
 const OUT_DIR = 'public/fallback'
 const FPS = 30
 const W = 1920
@@ -27,7 +32,12 @@ const MAX_BYTES = 8 * 1024 * 1024
 
 const frames = mkdtempSync(join(tmpdir(), 'blast-capture-'))
 mkdirSync(OUT_DIR, { recursive: true })
-const browser = await chromium.launch({ channel: 'chromium', args: ['--use-angle=metal', '--enable-gpu'] })
+const mp4 = join(OUT_DIR, 'blast.mp4')
+const poster = join(OUT_DIR, 'poster.jpg')
+// Same directory as the targets, so the final rename is atomic (no cross-device move).
+const mp4Tmp = join(OUT_DIR, 'blast.tmp.mp4')
+const posterTmp = join(OUT_DIR, 'poster.tmp.jpg')
+const browser = await launch()
 try {
   const page = await browser.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 1, reducedMotion: 'reduce' })
   const errors = []
@@ -84,19 +94,23 @@ try {
   }
   if (errors.length) throw new Error(`page errors: ${errors.join(' | ')}`)
 
-  const mp4 = join(OUT_DIR, 'blast.mp4')
   let crf = 20
   for (;;) {
-    execFileSync(FFMPEG, ['-y', '-loglevel', 'error', '-framerate', String(FPS), '-i', join(frames, '%04d.png'), '-c:v', 'libx264', '-preset', 'slow', '-crf', String(crf), '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-an', mp4])
-    const size = statSync(mp4).size
+    execFileSync(FFMPEG, ['-y', '-loglevel', 'error', '-framerate', String(FPS), '-i', join(frames, '%04d.png'), '-c:v', 'libx264', '-preset', 'slow', '-crf', String(crf), '-pix_fmt', 'yuv420p', '-movflags', '+faststart', '-an', mp4Tmp])
+    const size = statSync(mp4Tmp).size
     console.log(`crf ${crf}: ${(size / 1024 / 1024).toFixed(2)} MB`)
     if (size < MAX_BYTES || crf >= 34) break
     crf += 2
   }
   const last = readdirSync(frames).sort().at(-1)
-  execFileSync(FFMPEG, ['-y', '-loglevel', 'error', '-i', join(frames, last), '-q:v', '3', join(OUT_DIR, 'poster.jpg')])
-  console.log(`${total} frames (${(total / FPS).toFixed(1)} s) -> ${mp4}, ${join(OUT_DIR, 'poster.jpg')}`)
+  execFileSync(FFMPEG, ['-y', '-loglevel', 'error', '-i', join(frames, last), '-q:v', '3', posterTmp])
+  if (statSync(mp4Tmp).size >= MAX_BYTES) throw new Error(`the video is still ${MAX_BYTES} bytes or more at crf ${crf}; the committed files are unchanged`)
+  renameSync(mp4Tmp, mp4)
+  renameSync(posterTmp, poster)
+  console.log(`${total} frames (${(total / FPS).toFixed(1)} s) -> ${mp4}, ${poster}`)
 } finally {
   await browser.close()
   rmSync(frames, { recursive: true, force: true })
+  rmSync(mp4Tmp, { force: true })
+  rmSync(posterTmp, { force: true })
 }

@@ -1,6 +1,6 @@
 :root {
   color-scheme: dark;
-  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   background: #121417;
   color: #e6e8eb;
   --muted: #8b929b;
@@ -24,6 +24,15 @@ body,
 body {
   margin: 0;
   background: #121417;
+}
+
+/* Static text in index.html: shown until React replaces #root, or when JavaScript is off. */
+.boot {
+  margin: 0;
+  padding: 2rem 1rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+  text-align: center;
 }
 
 .app {
@@ -216,6 +225,44 @@ select {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--muted);
+}
+
+/* The keyboard hole list: visually hidden, still focusable; a hint line shows while it has focus. Takes no grid row while hidden. */
+.hole-picker {
+  display: contents;
+}
+
+.hole-list {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.hole-picker-hint {
+  display: none;
+  margin: 0;
+  padding: 0.35rem 0.5rem;
+  border-radius: 5px;
+  box-shadow: 0 0 0 2px var(--focus);
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  color: var(--text-soft);
+}
+
+.hole-picker:focus-within .hole-picker-hint {
+  display: block;
+}
+
+.hole-card:focus {
+  outline: none;
+}
+
+.hole-card:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
 }
 
 .ctl-note {
@@ -660,7 +707,8 @@ select {
 
 /* ---------- phones ---------- */
 
-@media (max-width: 767px) {
+/* Narrow screens, and short ones (a phone held in landscape is 844-932 px wide but under 500 px tall). Matches isPhone in src/lib/device.ts. */
+@media (max-width: 767px), (max-height: 500px) {
   :root {
     --gap: 0.5rem;
   }

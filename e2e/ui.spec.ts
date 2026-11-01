@@ -61,7 +61,7 @@ test('clicking a hole opens its card', async ({ page }) => {
   const hole = await page.evaluate(() => (window as unknown as Hooks).__blastTest.holeOnScreen())
   expect(hole).not.toBeNull()
   await page.mouse.click(hole!.x, hole!.y)
-  const card = page.getByRole('dialog', { name: `Hole ${hole!.id}` })
+  const card = page.getByRole('region', { name: `Hole ${hole!.id}` })
   await expect(card).toBeVisible()
   await expect(card).toContainText('waiting')
   await expect(card).toContainText('Charge')
@@ -81,4 +81,47 @@ test('phone layout fits 375 px with no horizontal scroll', async ({ page }) => {
   await expect(page.getByRole('group', { name: 'View options' })).toBeVisible()
   const vectors = await page.evaluate(() => (window as unknown as { __blast: { getState(): { showVectors: boolean } } }).__blast.getState().showVectors)
   expect(vectors).toBe(false)
+})
+
+test('holes are keyboard-selectable from the Holes list', async ({ page }) => {
+  await ready(page)
+  const list = page.getByRole('listbox', { name: 'Holes' })
+  // Reached by Tab like any other control.
+  for (let k = 0; k < 20; k++) {
+    await page.keyboard.press('Tab')
+    if (await list.evaluate((el) => el === document.activeElement)) break
+  }
+  await expect(list).toBeFocused()
+  await page.keyboard.press('ArrowDown')
+  await page.keyboard.press('ArrowDown')
+  const id = await list.evaluate((el) => document.getElementById(el.getAttribute('aria-activedescendant')!)!.textContent!.match(/Hole (\S+),/)![1])
+  await page.keyboard.press('Enter')
+  const card = page.getByRole('region', { name: `Hole ${id}` })
+  await expect(card).toBeVisible()
+  await expect(card).toBeFocused()
+  expect(await page.evaluate(() => (window as unknown as Hooks).__blast.getState().playing)).toBe(false)
+  await page.keyboard.press('Escape')
+  await expect(card).toBeHidden()
+  await expect(list).toBeFocused()
+  // Space opens the card too, and does not toggle playback.
+  await page.keyboard.press('Space')
+  await expect(page.getByRole('region', { name: `Hole ${id}` })).toBeFocused()
+  expect(await page.evaluate(() => (window as unknown as Hooks).__blast.getState().playing)).toBe(false)
+})
+
+test.describe('?t= links', () => {
+  // Motion allowed, so the test also shows that a linked time is not overridden by autoplay.
+  test.use({ reducedMotion: 'no-preference' })
+
+  test('?t=<ms> and ?t=end open at that time and do not autoplay', async ({ page }) => {
+    await page.goto('./?t=500')
+    await expect(readout(page)).toHaveText(/^t = 500 ms \//)
+    await page.waitForTimeout(1500)
+    await expect(readout(page)).toHaveText(/^t = 500 ms \//)
+    expect(await page.evaluate(() => (window as unknown as Hooks).__blast.getState().playing)).toBe(false)
+
+    await page.goto('./?t=end')
+    await expect(readout(page)).toHaveText(/^t = ([\d,]+) ms \/ \1 ms$/)
+    await expect(readout(page)).not.toHaveText(/^t = 0 ms/)
+  })
 })

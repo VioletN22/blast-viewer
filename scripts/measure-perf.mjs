@@ -3,10 +3,10 @@
 //   VITE_E2E=1 npm run build && npm run preview -- --port 4173
 //   node scripts/measure-perf.mjs [baseUrl]
 import { loadavg } from 'node:os'
-import { chromium } from '@playwright/test'
+import { launch } from './browser.mjs'
 
 const base = process.argv[2] ?? 'http://localhost:4173/blast-viewer/'
-const browser = await chromium.launch({ channel: 'chromium', args: ['--use-angle=metal', '--enable-gpu'] })
+const browser = await launch()
 const rows = []
 for (const scale of [1, 4]) {
   const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2, reducedMotion: 'reduce' })

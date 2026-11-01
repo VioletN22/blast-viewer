@@ -4,7 +4,7 @@ import { Color, CylinderGeometry, InstancedMesh, MeshBasicMaterial, Object3D, Sp
 import type { Scenario } from '../sim/scenario'
 import { useBlast } from '../state/store'
 import { delayColor } from './colors'
-import { lastFireMs } from '../sim/fire'
+import { hasFired, lastFireMs } from '../sim/fire'
 
 const FLASH_MS = 320
 const HOT = new Color('#fff4d6')
@@ -56,7 +56,7 @@ export function Holes({ scenario }: { scenario: Scenario }) {
       const local = timeMs - h.delayMs
       c.setRGB(base[i * 3], base[i * 3 + 1], base[i * 3 + 2])
       let s = 1
-      const fired = local >= 0 && timeMs > 0
+      const fired = hasFired(h.delayMs, timeMs)
       if (fired) {
         const u = Math.min(1, local / FLASH_MS)
         // Flash hot and wide, then shrink to nothing as it cools.

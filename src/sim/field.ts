@@ -1,3 +1,4 @@
+import { smoothstep } from './ease'
 import type { DrillHole, Terrain } from './types'
 
 /**
@@ -25,7 +26,7 @@ const THROW_FLOOR_M = 0.4
 /** The field tapers to 0 over this distance outside the blasted footprint (smoothstep), metres. */
 const TAPER_M = 3.5
 /** Muck-pile reach in front of the crest, metres. */
-const PILE_REACH_M = 34
+export const PILE_REACH_M = 34
 /** Pile height as a fraction of the bench: at the back of the block (swell plus heave) and at the crest (slumped). */
 const PILE_BACK_FRAC = 1.2
 const PILE_CREST_FRAC = 0.75
@@ -228,7 +229,7 @@ function coverage(idx: HoleIndex, px: number, pz: number): number {
   const ox = Math.max(0, idx.minX - px, px - idx.maxX)
   const oz = Math.max(0, idx.minZ - pz, pz - idx.toeZ)
   const u = Math.max(0, 1 - Math.hypot(ox, oz) / TAPER_M)
-  return u * u * (3 - 2 * u)
+  return smoothstep(u)
 }
 
 /** Ground after the blast for a prepared index: the floor (y = 0) inside the footprint, terrain outside. */
@@ -258,7 +259,7 @@ function muckTop(t: Terrain, z: number): number {
   const s = z - crestZ
   if (s <= 0) {
     const u = Math.min(1, -s / PILE_RISE_M)
-    const rise = u * u * (3 - 2 * u)
+    const rise = smoothstep(u)
     return benchHeight * (PILE_CREST_FRAC + (PILE_BACK_FRAC - PILE_CREST_FRAC) * rise)
   }
   if (s < PILE_REACH_M) return PILE_CREST_FRAC * benchHeight * Math.pow(1 - s / PILE_REACH_M, 1.5)

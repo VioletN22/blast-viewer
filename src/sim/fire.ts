@@ -13,3 +13,11 @@ export function lastFireMs(holes: DrillHole[]): number {
   for (const h of holes) if (h.delayMs > m) m = h.delayMs
   return m
 }
+
+/**
+ * True once a hole with this delay has fired at tMs. Nothing has fired at
+ * t = 0, even a hole with a 0 ms delay: the opening frame is the intact bench.
+ */
+export function hasFired(holeDelayMs: number, tMs: number): boolean {
+  return tMs > 0 && tMs >= holeDelayMs
+}

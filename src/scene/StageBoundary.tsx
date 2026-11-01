@@ -6,7 +6,6 @@ interface Props {
   fallback: ReactNode
   /** A change (a new scenario) clears the error and mounts the children again. */
   resetKey: unknown
-  onError?(error: Error): void
 }
 
 interface State {
@@ -19,10 +18,6 @@ export class StageBoundary extends Component<Props, State> {
 
   static getDerivedStateFromError(error: Error): State {
     return { error }
-  }
-
-  componentDidCatch(error: Error) {
-    this.props.onError?.(error)
   }
 
   componentDidUpdate(prev: Props) {

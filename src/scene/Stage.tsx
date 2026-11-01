@@ -1,6 +1,6 @@
 import { OrbitControls } from '@react-three/drei'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Vector3, type DirectionalLight, type PerspectiveCamera } from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import type { Scenario } from '../sim/scenario'
@@ -40,7 +40,7 @@ function InvalidateOnChange() {
 }
 
 /** Bench-top height at (x, z): the pre-blast terrain, which is never below the post-blast ground. */
-const groundAt = (sc: Scenario, x: number, z: number) => sc.terrain.heightAt(x, z)
+const preBlastGroundAt = (sc: Scenario, x: number, z: number) => sc.terrain.heightAt(x, z)
 
 const LANDSCAPE_DIR = new Vector3(0.28, 0.62, 0.73)
 const PORTRAIT_DIR = new Vector3(0.2, 0.78, 0.6)
@@ -57,7 +57,7 @@ function Framing({ scenario }: { scenario: Scenario }) {
     const aspect = size.width / Math.max(1, size.height)
     const tz = (ext.minZ + ext.maxZ) / 2 - 6
     // Target on the bench surface (the bench top behind the crest), never inside the rock.
-    const target = new Vector3(ext.cx, groundAt(scenario, ext.cx, tz), tz)
+    const target = new Vector3(ext.cx, preBlastGroundAt(scenario, ext.cx, tz), tz)
     // Look in from the free face, a little off-axis, about 38 degrees down. A portrait frame
     // is bound by its width, which left a tall band of empty sky: there the view looks down
     // more steeply (about 50 degrees) and the side margin shrinks, so the block fills about
@@ -125,8 +125,8 @@ function CameraClamp({ scenario }: { scenario: Scenario }) {
         t.x = x
         t.z = z
       }
-      t.y = groundAt(scenario, t.x, t.z)
-      const floor = groundAt(scenario, camera.position.x, camera.position.z) + CAMERA_CLEARANCE_M
+      t.y = preBlastGroundAt(scenario, t.x, t.z)
+      const floor = preBlastGroundAt(scenario, camera.position.x, camera.position.z) + CAMERA_CLEARANCE_M
       if (camera.position.y < floor) camera.position.y = floor
     }
     controls.addEventListener('change', clamp)
@@ -170,13 +170,50 @@ function Lights({ scenario }: { scenario: Scenario }) {
   )
 }
 
+/** How long a lost context may take to come back (a phone tab returning from the background) before the fallback shows. */
+export const CONTEXT_RESTORE_WAIT_MS = 3000
+
+/**
+ * Waits for a lost WebGL context to be restored. preventDefault on the loss
+ * tells the browser the page can restore; if no webglcontextrestored arrives
+ * within CONTEXT_RESTORE_WAIT_MS, onGiveUp runs. On restore, onRestored runs
+ * (the demand frameloop would otherwise leave the canvas blank until the next change).
+ */
+function useContextLoss(canvas: HTMLCanvasElement | null, onGiveUp: () => void, onRestored: () => void) {
+  useEffect(() => {
+    if (!canvas) return
+    let timer: number | undefined
+    const onLost = (e: Event) => {
+      e.preventDefault()
+      window.clearTimeout(timer)
+      timer = window.setTimeout(onGiveUp, CONTEXT_RESTORE_WAIT_MS)
+    }
+    const onRestore = () => {
+      window.clearTimeout(timer)
+      onRestored()
+    }
+    canvas.addEventListener('webglcontextlost', onLost)
+    canvas.addEventListener('webglcontextrestored', onRestore)
+    return () => {
+      window.clearTimeout(timer)
+      canvas.removeEventListener('webglcontextlost', onLost)
+      canvas.removeEventListener('webglcontextrestored', onRestore)
+    }
+  }, [canvas, onGiveUp, onRestored])
+}
+
 export function Stage({ scenario }: { scenario: Scenario }) {
-  // A lost context (GPU reset, memory pressure) is rethrown during render, so StageBoundary shows the fallback.
+  // A context that stays lost is rethrown during render, so StageBoundary shows the fallback.
   const [lost, setLost] = useState(false)
+  const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null)
+  const giveUp = useCallback(() => setLost(true), [])
+  const invalidateRef = useRef<() => void>(() => {})
+  const redraw = useCallback(() => invalidateRef.current(), [])
+  useContextLoss(canvas, giveUp, redraw)
   const playing = useBlast((s) => s.playing)
   // With the stats panel on, render continuously so the fps it shows is a real frame rate, not idle gaps.
   const showPerf = useBlast((s) => s.showPerf)
-  if (lost) throw new Error('The WebGL context was lost.')
+  if (lost) throw new Error('The WebGL context was lost and not restored.')
   return (
     <Canvas
       frameloop={playing || showPerf ? 'always' : 'demand'}
@@ -184,7 +221,10 @@ export function Stage({ scenario }: { scenario: Scenario }) {
       shadows
       camera={{ fov: 38, position: [60, 90, 140], near: 0.5, far: 2000 }}
       gl={{ antialias: true, preserveDrawingBuffer: import.meta.env.DEV }}
-      onCreated={({ gl }) => gl.domElement.addEventListener('webglcontextlost', () => setLost(true), { once: true })}
+      onCreated={({ gl, invalidate }) => {
+        invalidateRef.current = () => invalidate()
+        setCanvas(gl.domElement)
+      }}
       onPointerMissed={() => useBlast.getState().selectHole(null)}
       style={{ background: BG }}
     >

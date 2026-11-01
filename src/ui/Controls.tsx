@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useBlast, type ColorBy, type Scale } from '../state/store'
+import { HolePicker } from './HolePicker'
 
 const SCALES: Scale[] = [1, 2, 3, 4]
 const COLORS: { v: ColorBy; label: string }[] = [
@@ -37,6 +38,7 @@ export function Controls() {
   const showPerf = useBlast((s) => s.showPerf)
   const scale = useBlast((s) => s.scale)
   const st = useBlast.getState()
+  const toggleRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     if (!open) return
@@ -52,7 +54,7 @@ export function Controls() {
 
   return (
     <div className={`controls${open ? ' is-open' : ''}`}>
-      <button type="button" className="controls-toggle panel" aria-label="Layers" aria-expanded={open} aria-controls="view-options" onClick={() => setOpen((o) => !o)}>
+      <button ref={toggleRef} type="button" className="controls-toggle panel" aria-label="Layers" aria-expanded={open} aria-controls="view-options" onClick={() => setOpen((o) => !o)}>
         <LayersIcon />
         <span>Layers</span>
       </button>
@@ -90,6 +92,8 @@ export function Controls() {
             </p>
           )}
         </fieldset>
+        {/* On a phone the sheet closes on a pick, so the card is not under it; focus then returns to the Layers toggle. */}
+        <HolePicker onPick={() => setOpen(false)} fallbackFocus={toggleRef} />
       </div>
     </div>
   )

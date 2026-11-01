@@ -2,6 +2,7 @@ import { useFrame } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import { DoubleSide, type Mesh, MeshBasicMaterial, RingGeometry } from 'three'
 import { groundAfterBlast } from '../sim/field'
+import { hasFired } from '../sim/fire'
 import type { Scenario } from '../sim/scenario'
 import { useBlast } from '../state/store'
 
@@ -36,7 +37,7 @@ export function SelectionRing({ scenario }: { scenario: Scenario }) {
     const m = ref.current
     if (!m || !target) return
     const { timeMs } = useBlast.getState()
-    const fired = timeMs > 0 && timeMs >= target.delayMs
+    const fired = hasFired(target.delayMs, timeMs)
     m.position.set(target.x, fired ? target.groundY : target.collarY, target.z)
   })
 

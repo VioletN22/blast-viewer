@@ -1,3 +1,4 @@
+import { PILE_REACH_M } from '../sim/field'
 import type { Scenario } from '../sim/scenario'
 
 /** Plan extents that matter for framing: the holes (real min/max x, not symmetric) and the muck-pile reach. */
@@ -21,8 +22,8 @@ export function sceneExtents(s: Scenario) {
     minX: Math.max(-half, minX),
     maxX: Math.min(half, maxX),
     minZ,
-    // The pile runs out about 34 m past the crest.
-    maxZ: crest + 34,
+    // The muck pile runs out PILE_REACH_M past the crest.
+    maxZ: crest + PILE_REACH_M,
     cx: (minX + maxX) / 2,
   }
 }

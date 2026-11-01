@@ -1,3 +1,4 @@
+import { easeOut, smoothstep } from './ease'
 import { endPoint, holeIndex, nearestHole } from './field'
 import { mulberry32, randRange } from './rng'
 import type { DrillHole, Terrain } from './types'
@@ -105,10 +106,9 @@ export function positionAt(f: Fragments, i: number, tMs: number, out: Float32Arr
     return
   }
   const u = local / flight
-  const inv = 1 - u
-  const h = 1 - inv * inv // ease-out: fast launch, slowing toward landing
-  const v = u * u * (3 - 2 * u) // smoothstep for the vertical baseline
-  const arc = arcPeak(f.magnitude[i], f.end[o + 1] - f.start[o + 1]) * 4 * u * inv
+  const h = easeOut(u) // fast launch, slowing toward landing
+  const v = smoothstep(u) // vertical baseline
+  const arc = arcPeak(f.magnitude[i], f.end[o + 1] - f.start[o + 1]) * 4 * u * (1 - u)
   out[offset] = f.start[o] + (f.end[o] - f.start[o]) * h
   out[offset + 1] = f.start[o + 1] + (f.end[o + 1] - f.start[o + 1]) * v + arc
   out[offset + 2] = f.start[o + 2] + (f.end[o + 2] - f.start[o + 2]) * h

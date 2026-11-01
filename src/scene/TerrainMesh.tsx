@@ -2,7 +2,7 @@ import { useEffect, useMemo } from 'react'
 import { DoubleSide, MeshStandardMaterial, type WebGLProgramParametersWithUniforms } from 'three'
 import type { Scenario } from '../sim/scenario'
 import { useBlast } from '../state/store'
-import { firstFireMs } from '../sim/fire'
+import { firstFireMs, hasFired } from '../sim/fire'
 import { buildTerrainGeometry } from './terrainGeometry'
 
 /**
@@ -83,7 +83,7 @@ export function TerrainMesh({ scenario }: { scenario: Scenario }) {
   )
 
   const firstFire = firstFireMs(holes)
-  const fired = useBlast((s) => s.timeMs >= firstFire && s.timeMs > 0)
+  const fired = useBlast((s) => hasFired(firstFire, s.timeMs))
   const showBefore = useBlast((s) => s.showBefore)
 
   return (
