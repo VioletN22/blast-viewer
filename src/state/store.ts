@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { buildScenario, type Scenario } from '../sim/scenario'
+import { DEFAULT_SPEED } from '../ui/timelineFormat'
 
 export type Scale = 1 | 2 | 3 | 4
 export type ColorBy = 'movement' | 'delay'
@@ -44,8 +45,8 @@ export const useBlast = create<BlastState>()((set, get) => ({
   scenario: null,
   timeMs: 0,
   playing: false,
-  // About an 18 s playback of the default 2.7 s blast, so the firing sequence can be followed.
-  speed: 0.15,
+  // About an 11 s playback of the default 2.7 s blast, so the firing sequence can be followed.
+  speed: DEFAULT_SPEED,
   colorBy: 'movement',
   showBefore: false,
   showVectors: true,

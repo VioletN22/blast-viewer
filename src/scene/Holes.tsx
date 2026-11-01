@@ -14,7 +14,7 @@ const WHITE = new Color('#ffffff')
  * Collar markers, one InstancedMesh, coloured by firing delay. A hole flashes
  * when it fires (t >= delayMs), then shrinks away: once the flash is over the
  * collar is gone with the bench, so its marker is hidden (scale 0, which also
- * takes it out of picking). A selected hole stays visible.
+ * takes it out of picking). A selected hole is white until it fires.
  */
 export function Holes({ scenario }: { scenario: Scenario }) {
   const { holes } = scenario
@@ -56,13 +56,15 @@ export function Holes({ scenario }: { scenario: Scenario }) {
       const local = timeMs - h.delayMs
       c.setRGB(base[i * 3], base[i * 3 + 1], base[i * 3 + 2])
       let s = 1
-      if (local >= 0 && timeMs > 0) {
+      const fired = local >= 0 && timeMs > 0
+      if (fired) {
         const u = Math.min(1, local / FLASH_MS)
         // Flash hot and wide, then shrink to nothing as it cools.
         s = 1.9 * (1 - u)
         c.lerp(HOT, 1 - u)
       }
-      if (h.id === selectedHoleId) {
+      // A selected hole is white while it waits; once fired it flashes and goes like the rest (SelectionRing marks the spot).
+      if (h.id === selectedHoleId && !fired) {
         c.copy(WHITE)
         s = Math.max(s, 1.5)
       }
