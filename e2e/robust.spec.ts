@@ -172,7 +172,7 @@ test('escape closes the topmost layer first', async ({ page }) => {
   const hole = await page.evaluate(() => (window as unknown as Hooks).__blastTest.holeOnScreen())
   expect(hole).not.toBeNull()
   await page.evaluate((id) => (window as unknown as Hooks).__blast.getState().selectHole(id), hole!.id)
-  const card = page.getByRole('dialog', { name: `Hole ${hole!.id}` })
+  const card = page.getByRole('region', { name: `Hole ${hole!.id}` })
   await expect(card).toBeVisible()
   await page.getByRole('button', { name: 'Layers' }).click()
   const sheet = page.getByRole('group', { name: 'View options' })

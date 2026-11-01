@@ -227,6 +227,44 @@ select {
   color: var(--muted);
 }
 
+/* The keyboard hole list: visually hidden, still focusable; a hint line shows while it has focus. Takes no grid row while hidden. */
+.hole-picker {
+  display: contents;
+}
+
+.hole-list {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.hole-picker-hint {
+  display: none;
+  margin: 0;
+  padding: 0.35rem 0.5rem;
+  border-radius: 5px;
+  box-shadow: 0 0 0 2px var(--focus);
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  color: var(--text-soft);
+}
+
+.hole-picker:focus-within .hole-picker-hint {
+  display: block;
+}
+
+.hole-card:focus {
+  outline: none;
+}
+
+.hole-card:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
 .ctl-note {
   margin: 0.4rem 0 0;
   font-family: var(--mono);

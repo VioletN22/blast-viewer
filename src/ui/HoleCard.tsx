@@ -2,6 +2,9 @@ import { useEffect, useMemo } from 'react'
 import { hasFired } from '../sim/fire'
 import { useBlast } from '../state/store'
 
+/** The card's element id, so the keyboard hole list can move focus to it. */
+export const HOLE_CARD_ID = 'hole-card'
+
 /** Details of the selected hole and whether it has fired at the current time. Escape or the close button deselects. */
 export function HoleCard() {
   const scenario = useBlast((s) => s.scenario)
@@ -23,7 +26,8 @@ export function HoleCard() {
   if (!hole) return null
   const close = () => useBlast.getState().selectHole(null)
   return (
-    <section className="hole-card panel" role="dialog" aria-labelledby="hole-card-title">
+    // A live region rather than a dialog: it does not trap focus, and screen readers announce it when it opens.
+    <section id={HOLE_CARD_ID} className="hole-card panel" role="region" aria-labelledby="hole-card-title" aria-live="polite" tabIndex={-1}>
       <div className="hc-head">
         <h2 id="hole-card-title">Hole {hole.id}</h2>
         <span className={`hc-status ${fired ? 'is-fired' : 'is-waiting'}`}>{fired ? 'fired' : 'waiting'}</span>
