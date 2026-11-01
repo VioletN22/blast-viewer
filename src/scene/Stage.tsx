@@ -10,6 +10,8 @@ import { DigLine } from './DigLine'
 import { Fragments } from './Fragments'
 import { Holes } from './Holes'
 import { PerfProbe } from './PerfProbe'
+import { SelectionRing } from './SelectionRing'
+import { TEST_HOOKS, TestHooks } from './TestHooks'
 import { TerrainMesh } from './TerrainMesh'
 import { Vectors } from './Vectors'
 
@@ -181,6 +183,7 @@ export function Stage({ scenario }: { scenario: Scenario }) {
       <Fragments scenario={scenario} />
       <Vectors scenario={scenario} />
       <DigLine scenario={scenario} />
+      <SelectionRing scenario={scenario} />
       <OrbitControls
         makeDefault
         enableDamping
@@ -193,6 +196,7 @@ export function Stage({ scenario }: { scenario: Scenario }) {
       <Player />
       <PerfProbe />
       <InvalidateOnChange />
+      {TEST_HOOKS && <TestHooks scenario={scenario} />}
     </Canvas>
   )
 }
