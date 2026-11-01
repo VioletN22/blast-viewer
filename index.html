@@ -5,9 +5,18 @@
     <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Bench blast viewer</title>
+    <meta name="description" content="Interactive 3D viewer for a synthetic open-pit bench blast: drill pattern, firing sequence, rock movement and the muck pile, built with React Three Fiber." />
+    <meta name="theme-color" content="#121417" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Bench blast viewer" />
+    <meta property="og:description" content="Interactive 3D viewer for a synthetic open-pit bench blast. Synthetic data, illustrative model." />
+    <meta property="og:url" content="https://violetn22.github.io/blast-viewer/" />
+    <meta property="og:image" content="https://violetn22.github.io/blast-viewer/fallback/poster.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><p class="boot">Loading the 3D viewer…</p></div>
+    <noscript><p class="boot">The bench blast viewer needs JavaScript and WebGL. Turn on JavaScript to see it.</p></noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

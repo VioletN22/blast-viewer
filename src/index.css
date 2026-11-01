@@ -1,6 +1,6 @@
 :root {
   color-scheme: dark;
-  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
   background: #121417;
   color: #e6e8eb;
   --muted: #8b929b;
@@ -24,6 +24,15 @@ body,
 body {
   margin: 0;
   background: #121417;
+}
+
+/* Static text in index.html: shown until React replaces #root, or when JavaScript is off. */
+.boot {
+  margin: 0;
+  padding: 2rem 1rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+  text-align: center;
 }
 
 .app {
