@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { loadScenario } from './sim/loadScenario'
 import { buildScenario } from './sim/scenario'
 import { Stage } from './scene/Stage'
+import { StageBoundary } from './scene/StageBoundary'
 import { useBlast } from './state/store'
 
 if (import.meta.env.DEV) {
@@ -39,7 +40,11 @@ export default function App() {
         <p>Synthetic data. Illustrative model, not a prediction.</p>
       </header>
       <section className="viewport" aria-label="3D bench view">
-        {scenario && <Stage scenario={scenario} />}
+        {scenario && (
+          <StageBoundary>
+            <Stage scenario={scenario} />
+          </StageBoundary>
+        )}
         {!scenario && !error && <p className="status">Building scenario…</p>}
         {error && (
           <div className="status status-error" role="alert">

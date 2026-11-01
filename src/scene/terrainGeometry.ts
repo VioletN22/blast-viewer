@@ -30,11 +30,14 @@ function blur(src: Float32Array, cols: number, rows: number, r: number): Float32
 
 /**
  * Grid mesh of the terrain. With holes, the surface is the post-blast ground
- * (groundAfterBlast: the floor inside the blasted footprint). Normals come from
+ * (groundAfterBlast: the floor inside the blasted footprint). In 'ghost' mode
+ * it is the pre-blast bench over the footprint only (plus a one-cell skirt),
+ * for the translucent showBefore shell. Normals come from
  * a blurred copy of the heights so the per-vertex noise does not speckle the
  * shading; positions keep the exact heights.
  */
-export function buildTerrainGeometry(t: Terrain, holes: DrillHole[] | null): BufferGeometry {
+export function buildTerrainGeometry(t: Terrain, holes: DrillHole[] | null, mode: 'surface' | 'ghost' = 'surface'): BufferGeometry {
+  const ghost = mode === 'ghost' && holes !== null
   const { cols, rows } = t
   const { width, depth, resolution: res, benchHeight } = t.options
   const n = cols * rows
@@ -50,7 +53,8 @@ export function buildTerrainGeometry(t: Terrain, holes: DrillHole[] | null): Buf
         const g = groundAfterBlast(x, z, holes, t)
         // groundAfterBlast is the floor (0) inside the footprint, terrain elsewhere.
         if (g === 0 && pre > 0.5) {
-          h[k] = 0
+          // The ghost keeps the pre-blast height over the footprint; the surface drops to the floor.
+          h[k] = ghost ? pre : 0
           blasted[k] = 1
         } else h[k] = pre
       } else h[k] = pre
@@ -92,6 +96,8 @@ export function buildTerrainGeometry(t: Terrain, holes: DrillHole[] | null): Buf
       const b = a + 1
       const d = a + cols
       const e = d + 1
+      // The ghost covers only cells touching the blasted footprint: the removed bench top and face.
+      if (ghost && !(blasted[a] || blasted[b] || blasted[d] || blasted[e])) continue
       idx[m++] = a
       idx[m++] = d
       idx[m++] = b
@@ -104,7 +110,7 @@ export function buildTerrainGeometry(t: Terrain, holes: DrillHole[] | null): Buf
   g.setAttribute('position', new BufferAttribute(pos, 3))
   g.setAttribute('normal', new BufferAttribute(nor, 3))
   g.setAttribute('color', new BufferAttribute(col, 3))
-  g.setIndex(new BufferAttribute(idx, 1))
+  g.setIndex(new BufferAttribute(m === idx.length ? idx : idx.slice(0, m), 1))
   g.computeBoundingSphere()
   return g
 }

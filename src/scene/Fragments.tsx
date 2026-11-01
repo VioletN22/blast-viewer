@@ -83,7 +83,7 @@ export function Fragments({ scenario }: { scenario: Scenario }) {
       spinQ: new Quaternion(),
       ax: new Vector3(),
       p: new Float32Array(3),
-      last: { t: -1, colorBy: '', fragments: f },
+      last: { t: -1, colorBy: '' },
       firstFire: firstFireMs(holes),
       maxDelay: lastFireMs(holes),
     }),

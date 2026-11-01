@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from 'react'
-import { MeshStandardMaterial, type WebGLProgramParametersWithUniforms } from 'three'
+import { DoubleSide, MeshStandardMaterial, type WebGLProgramParametersWithUniforms } from 'three'
 import type { Scenario } from '../sim/scenario'
 import { useBlast } from '../state/store'
 import { buildTerrainGeometry, firstFireMs } from './terrainGeometry'
@@ -43,27 +43,36 @@ function surfaceMaterial() {
  * The bench. Before the first hole fires the pre-blast bench is the solid
  * surface; from then on the solid surface is the post-blast ground, so the
  * muck pile never clips through the old bench. With showBefore the pre-blast
- * bench is drawn over it as a translucent shell.
+ * bench over the blasted footprint is drawn as a translucent shell.
  */
 export function TerrainMesh({ scenario }: { scenario: Scenario }) {
   const { terrain, holes } = scenario
   const pre = useMemo(() => buildTerrainGeometry(terrain, null), [terrain])
   const post = useMemo(() => buildTerrainGeometry(terrain, holes), [terrain, holes])
+  const ghostGeom = useMemo(() => buildTerrainGeometry(terrain, holes, 'ghost'), [terrain, holes])
   const solid = useMemo(surfaceMaterial, [])
-  const ghost = useMemo(
-    () =>
-      new MeshStandardMaterial({
-        color: '#9fb4c8',
-        transparent: true,
-        opacity: 0.22,
-        depthWrite: false,
-        roughness: 1,
-        metalness: 0,
-      }),
-    [],
-  )
+  const ghost = useMemo(() => {
+    const m = new MeshStandardMaterial({
+      color: '#8fb6dc',
+      emissive: '#24384d',
+      transparent: true,
+      opacity: 0.38,
+      depthWrite: false,
+      side: DoubleSide,
+      // The one-cell skirt lies on the solid rim: pull the shell forward so it does not z-fight there.
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+      polygonOffsetUnits: -1,
+      roughness: 1,
+      metalness: 0,
+    })
+    // Same survey grid and contours as the ground, so the removed volume reads as surveyed bench.
+    m.onBeforeCompile = addLinework
+    return m
+  }, [])
   useEffect(() => () => pre.dispose(), [pre])
   useEffect(() => () => post.dispose(), [post])
+  useEffect(() => () => ghostGeom.dispose(), [ghostGeom])
   useEffect(
     () => () => {
       solid.dispose()
@@ -79,7 +88,7 @@ export function TerrainMesh({ scenario }: { scenario: Scenario }) {
   return (
     <group>
       <mesh geometry={fired ? post : pre} material={solid} receiveShadow castShadow />
-      {fired && showBefore && <mesh geometry={pre} material={ghost} renderOrder={2} />}
+      {fired && showBefore && <mesh geometry={ghostGeom} material={ghost} renderOrder={2} />}
     </group>
   )
 }

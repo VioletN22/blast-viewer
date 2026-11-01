@@ -1,6 +1,6 @@
 import { useFrame, type ThreeEvent } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
-import { Color, CylinderGeometry, InstancedMesh, MeshBasicMaterial, Object3D } from 'three'
+import { Color, CylinderGeometry, InstancedMesh, MeshBasicMaterial, Object3D, Sphere, Vector3 } from 'three'
 import type { Scenario } from '../sim/scenario'
 import { useBlast } from '../state/store'
 import { delayColor } from './colors'
@@ -12,7 +12,9 @@ const WHITE = new Color('#ffffff')
 
 /**
  * Collar markers, one InstancedMesh, coloured by firing delay. A hole flashes
- * when it fires (t >= delayMs), then settles to a small dim "spent" marker.
+ * when it fires (t >= delayMs), then shrinks away: once the flash is over the
+ * collar is gone with the bench, so its marker is hidden (scale 0, which also
+ * takes it out of picking). A selected hole stays visible.
  */
 export function Holes({ scenario }: { scenario: Scenario }) {
   const { holes } = scenario
@@ -33,7 +35,12 @@ export function Holes({ scenario }: { scenario: Scenario }) {
     holes.forEach((h, i) => delayColor(h.delayMs, maxDelay, c).toArray(out, i * 3))
     return out
   }, [holes])
-  const tmp = useMemo(() => ({ o: new Object3D(), c: new Color(), last: { t: -1, sel: '' as string | null, holes } }), [holes])
+  const tmp = useMemo(() => {
+    const pts = holes.map((h) => new Vector3(h.x, h.collarY, h.z))
+    const bounds = new Sphere().setFromPoints(pts)
+    bounds.radius += 2
+    return { o: new Object3D(), c: new Color(), bounds, last: { t: -1, sel: '' as string | null } }
+  }, [holes])
 
   useFrame(() => {
     const mesh = ref.current
@@ -51,31 +58,32 @@ export function Holes({ scenario }: { scenario: Scenario }) {
       let s = 1
       if (local >= 0 && timeMs > 0) {
         const u = Math.min(1, local / FLASH_MS)
-        // Flash hot and wide, then cool to a dim, smaller spent marker.
-        s = 1.9 - 1.3 * u
-        c.lerp(HOT, 1 - u).multiplyScalar(1 - 0.75 * u)
+        // Flash hot and wide, then shrink to nothing as it cools.
+        s = 1.9 * (1 - u)
+        c.lerp(HOT, 1 - u)
       }
       if (h.id === selectedHoleId) {
         c.copy(WHITE)
         s = Math.max(s, 1.5)
       }
       o.position.set(h.x, h.collarY, h.z)
-      o.scale.set(s, 1, s)
+      o.scale.set(s, s > 0 ? 1 : 0, s)
       o.updateMatrix()
       mesh.setMatrixAt(i, o.matrix)
       mesh.setColorAt(i, c)
     }
     mesh.instanceMatrix.needsUpdate = true
     if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true
-    // Collars do not move, so the bounds (for picking and culling) are computed once.
-    if (!mesh.boundingSphere) mesh.computeBoundingSphere()
+    // Collars do not move: bounds for picking and culling come from the collar positions, whatever the marker sizes.
+    if (mesh.boundingSphere !== tmp.bounds) mesh.boundingSphere = tmp.bounds
   })
 
-  const onPointerDown = (e: ThreeEvent<PointerEvent>) => {
+  // onClick, not onPointerDown: R3F does not fire click after a drag, so orbiting never selects a hole.
+  const onClick = (e: ThreeEvent<MouseEvent>) => {
     if (e.instanceId === undefined) return
     e.stopPropagation()
     useBlast.getState().selectHole(holes[e.instanceId]?.id ?? null)
   }
 
-  return <instancedMesh key={holes.length} ref={ref} args={[geom, mat, holes.length]} onPointerDown={onPointerDown} renderOrder={1} />
+  return <instancedMesh key={holes.length} ref={ref} args={[geom, mat, holes.length]} onClick={onClick} renderOrder={1} />
 }

@@ -4,6 +4,7 @@ import { useEffect, useMemo } from 'react'
 import { Vector3, type DirectionalLight, type PerspectiveCamera } from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import type { Scenario } from '../sim/scenario'
+import { sceneExtents } from './extents'
 import { useBlast } from '../state/store'
 import { Fragments } from './Fragments'
 import { Holes } from './Holes'
@@ -11,38 +12,12 @@ import { TerrainMesh } from './TerrainMesh'
 
 const BG = '#121417'
 
-/** Plan extents that matter for framing: the holes (real min/max x, not symmetric) and the muck-pile reach. */
-export function sceneExtents(s: Scenario) {
-  let minX = Infinity
-  let maxX = -Infinity
-  let minZ = Infinity
-  for (const h of s.holes) {
-    if (h.x < minX) minX = h.x
-    if (h.x > maxX) maxX = h.x
-    if (h.z < minZ) minZ = h.z
-  }
-  const half = s.terrain.options.width / 2
-  if (!Number.isFinite(minX)) {
-    minX = -half / 2
-    maxX = half / 2
-    minZ = -20
-  }
-  const crest = s.terrain.options.crestZ
-  return {
-    minX: Math.max(-half, minX),
-    maxX: Math.min(half, maxX),
-    minZ,
-    // The pile runs out about 34 m past the crest.
-    maxZ: crest + 34,
-    cx: (minX + maxX) / 2,
-  }
-}
-
 /** Advances timeMs by delta * speed while playing and stops at the end. */
 function Player() {
   useFrame((_, delta) => {
     const s = useBlast.getState()
     if (!s.playing || !s.scenario) return
+    // One zustand set per playing frame is accepted (ruling); the no-allocation rule covers the render loops.
     const next = s.timeMs + Math.min(delta, 0.1) * 1000 * s.speed
     if (next >= s.scenario.durationMs) {
       s.setTime(s.scenario.durationMs)
@@ -59,15 +34,21 @@ function InvalidateOnChange() {
   return null
 }
 
-/** Frames the camera on the block and the pile from the free-face side, whenever the scenario's extents change. */
+/** Bench-top height at (x, z): the pre-blast terrain, which is never below the post-blast ground. */
+const groundAt = (sc: Scenario, x: number, z: number) => sc.terrain.heightAt(x, z)
+
+/** Frames the camera on the block and the pile from the free-face side, once per scenario (load or rebuild), not on resize. */
 function Framing({ scenario }: { scenario: Scenario }) {
   const camera = useThree((s) => s.camera) as PerspectiveCamera
   const controls = useThree((s) => s.controls) as OrbitControlsImpl | null
-  const aspect = useThree((s) => s.size.width / Math.max(1, s.size.height))
-  const ext = useMemo(() => sceneExtents(scenario), [scenario])
+  const get = useThree((s) => s.get)
   useEffect(() => {
+    const ext = sceneExtents(scenario)
+    const size = get().size
+    const aspect = size.width / Math.max(1, size.height)
     const tz = (ext.minZ + ext.maxZ) / 2 - 6
-    const target = new Vector3(ext.cx, 4, tz)
+    // Target on the bench surface (the bench top behind the crest), never inside the rock.
+    const target = new Vector3(ext.cx, groundAt(scenario, ext.cx, tz), tz)
     // Look in from the free face, a little off-axis, about 38 degrees down.
     const dir = new Vector3(0.28, 0.62, 0.73).normalize()
     // Box to keep in view: the block (with a margin) from the back row to the end of the pile, floor to bench top.
@@ -100,7 +81,43 @@ function Framing({ scenario }: { scenario: Scenario }) {
       controls.maxDistance = dist * 2.5
       controls.update()
     }
-  }, [ext, camera, controls, aspect])
+  }, [scenario, camera, controls, get])
+  return null
+}
+
+const CAMERA_CLEARANCE_M = 2
+
+/**
+ * Keeps the orbit target inside the terrain box and on its surface, and the
+ * camera at least CAMERA_CLEARANCE_M above the terrain at its xz, through
+ * orbit, zoom and pan.
+ */
+function CameraClamp({ scenario }: { scenario: Scenario }) {
+  const camera = useThree((s) => s.camera)
+  const controls = useThree((s) => s.controls) as OrbitControlsImpl | null
+  useEffect(() => {
+    if (!controls) return
+    const { width, depth } = scenario.terrain.options
+    const hx = width / 2
+    const hz = depth / 2
+    const clamp = () => {
+      const t = controls.target
+      const x = Math.min(hx, Math.max(-hx, t.x))
+      const z = Math.min(hz, Math.max(-hz, t.z))
+      if (x !== t.x || z !== t.z) {
+        // Shift the camera with the target so a clamped pan does not also rotate the view.
+        camera.position.x += x - t.x
+        camera.position.z += z - t.z
+        t.x = x
+        t.z = z
+      }
+      t.y = groundAt(scenario, t.x, t.z)
+      const floor = groundAt(scenario, camera.position.x, camera.position.z) + CAMERA_CLEARANCE_M
+      if (camera.position.y < floor) camera.position.y = floor
+    }
+    controls.addEventListener('change', clamp)
+    return () => controls.removeEventListener('change', clamp)
+  }, [controls, camera, scenario])
   return null
 }
 
@@ -165,6 +182,7 @@ export function Stage({ scenario }: { scenario: Scenario }) {
         screenSpacePanning={false}
       />
       <Framing scenario={scenario} />
+      <CameraClamp scenario={scenario} />
       <Player />
       <InvalidateOnChange />
     </Canvas>

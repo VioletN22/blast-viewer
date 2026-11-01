@@ -1,15 +1,15 @@
 import { SRGBColorSpace, type Color } from 'three'
 
-/** Viridis sampled at nine even stops (sRGB 0..255). Perceptually uniform, monotonic luminance. */
+/** Viridis sampled at nine evenly spaced stops, 0, 0.125, ..., 1 (sRGB 0..255). Perceptually uniform, monotonic luminance. */
 const VIRIDIS = [
   [68, 1, 84],
-  [72, 40, 120],
-  [62, 73, 137],
-  [49, 104, 142],
-  [38, 130, 142],
-  [31, 158, 137],
-  [53, 183, 121],
-  [110, 206, 88],
+  [71, 44, 122],
+  [59, 81, 139],
+  [44, 113, 142],
+  [33, 144, 141],
+  [39, 173, 129],
+  [92, 200, 99],
+  [170, 220, 50],
   [253, 231, 37],
 ] as const
 

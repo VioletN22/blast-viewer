@@ -4,7 +4,7 @@ import { useBlast } from '../store'
 
 describe('store', () => {
   beforeEach(() => {
-    useBlast.setState({ scenario: buildScenario({ seed: 20261101, scale: 1 }), timeMs: 0, playing: false, scale: 1 })
+    useBlast.setState({ scenario: buildScenario({ seed: 20261101, scale: 1 }), timeMs: 0, playing: false, scale: 1, pendingScale: null })
   })
 
   it('store: setTime clamps', () => {
@@ -26,5 +26,15 @@ describe('store', () => {
     expect(s.scenario!.params.scale).toBe(2)
     expect(s.scenario!.holes.length).toBe(6 * 30)
     expect(s.timeMs / s.scenario!.durationMs).toBeCloseTo(0.4, 6)
+  })
+
+  it('store: setScale before load applies on setScenario', () => {
+    useBlast.setState({ scenario: null, timeMs: 0, pendingScale: null })
+    useBlast.getState().setScale(2)
+    useBlast.getState().setScenario(buildScenario({ seed: 20261101, scale: 1 }))
+    const s = useBlast.getState()
+    expect(s.scale).toBe(2)
+    expect(s.scenario!.params.scale).toBe(2)
+    expect(s.pendingScale).toBeNull()
   })
 })
