@@ -6,9 +6,12 @@ import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import type { Scenario } from '../sim/scenario'
 import { sceneExtents } from './extents'
 import { useBlast } from '../state/store'
+import { DigLine } from './DigLine'
 import { Fragments } from './Fragments'
 import { Holes } from './Holes'
+import { PerfProbe } from './PerfProbe'
 import { TerrainMesh } from './TerrainMesh'
+import { Vectors } from './Vectors'
 
 const BG = '#121417'
 
@@ -158,9 +161,11 @@ function Lights({ scenario }: { scenario: Scenario }) {
 
 export function Stage({ scenario }: { scenario: Scenario }) {
   const playing = useBlast((s) => s.playing)
+  // With the stats panel on, render continuously so the fps it shows is a real frame rate, not idle gaps.
+  const showPerf = useBlast((s) => s.showPerf)
   return (
     <Canvas
-      frameloop={playing ? 'always' : 'demand'}
+      frameloop={playing || showPerf ? 'always' : 'demand'}
       dpr={[1, 2]}
       shadows
       camera={{ fov: 38, position: [60, 90, 140], near: 0.5, far: 2000 }}
@@ -174,6 +179,8 @@ export function Stage({ scenario }: { scenario: Scenario }) {
       <TerrainMesh scenario={scenario} />
       <Holes scenario={scenario} />
       <Fragments scenario={scenario} />
+      <Vectors scenario={scenario} />
+      <DigLine scenario={scenario} />
       <OrbitControls
         makeDefault
         enableDamping
@@ -184,6 +191,7 @@ export function Stage({ scenario }: { scenario: Scenario }) {
       <Framing scenario={scenario} />
       <CameraClamp scenario={scenario} />
       <Player />
+      <PerfProbe />
       <InvalidateOnChange />
     </Canvas>
   )

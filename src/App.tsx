@@ -4,6 +4,7 @@ import { buildScenario } from './sim/scenario'
 import { Stage } from './scene/Stage'
 import { StageBoundary } from './scene/StageBoundary'
 import { useBlast } from './state/store'
+import { PerfOverlay } from './ui/PerfOverlay'
 
 if (import.meta.env.DEV) {
   // Dev-only hook for screenshots and debugging: window.__blast.getState().setTime(ms)
@@ -45,6 +46,7 @@ export default function App() {
             <Stage scenario={scenario} />
           </StageBoundary>
         )}
+        <PerfOverlay />
         {!scenario && !error && <p className="status">Building scenario…</p>}
         {error && (
           <div className="status status-error" role="alert">
