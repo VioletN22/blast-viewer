@@ -1,6 +1,6 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo } from 'react'
-import { BufferAttribute, BufferGeometry, DoubleSide, InterleavedBufferAttribute, Mesh, MeshBasicMaterial } from 'three'
+import { BufferAttribute, BufferGeometry, Color, DoubleSide, InterleavedBufferAttribute, Mesh, MeshBasicMaterial } from 'three'
 import { Line2, LineGeometry, LineMaterial } from 'three-stdlib'
 import type { Scenario } from '../sim/scenario'
 import { useBlast } from '../state/store'
@@ -38,7 +38,7 @@ export function DigLine({ scenario }: { scenario: Scenario }) {
     const mkLine = (color: string, dashed: boolean) => {
       const g = new LineGeometry()
       g.setPositions(zone.from)
-      const m = new LineMaterial({ color: new MeshBasicMaterial({ color }).color.getHex(), linewidth: LINE_PX, worldUnits: false, dashed, dashSize: 2.2, gapSize: 1.6, transparent: true, depthTest: false, depthWrite: false })
+      const m = new LineMaterial({ color: new Color(color).getHex(), linewidth: LINE_PX, worldUnits: false, dashed, dashSize: 2.2, gapSize: 1.6, transparent: true, depthTest: false, depthWrite: false })
       const l = new Line2(g, m)
       if (dashed) l.computeLineDistances()
       l.renderOrder = 31

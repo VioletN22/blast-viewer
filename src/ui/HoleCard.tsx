@@ -12,7 +12,8 @@ export function HoleCard() {
   useEffect(() => {
     if (!hole) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') useBlast.getState().selectHole(null)
+      // An open Layers sheet sits above the card and claims Escape first (preventDefault).
+      if (e.key === 'Escape' && !e.defaultPrevented) useBlast.getState().selectHole(null)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)

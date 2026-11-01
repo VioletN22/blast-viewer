@@ -1,24 +1,35 @@
 import { Component, type ReactNode } from 'react'
 
+interface Props {
+  children: ReactNode
+  /** Shown in place of the children after a render or renderer error. */
+  fallback: ReactNode
+  /** A change (a new scenario) clears the error and mounts the children again. */
+  resetKey: unknown
+  onError?(error: Error): void
+}
+
 interface State {
   error: Error | null
 }
 
-/** Catches a WebGL or scene failure and shows a readable message instead of a blank page. */
-export class StageBoundary extends Component<{ children: ReactNode }, State> {
+/** Catches a WebGL or scene failure (including a lost context) and shows the fallback instead of a blank page. */
+export class StageBoundary extends Component<Props, State> {
   state: State = { error: null }
 
   static getDerivedStateFromError(error: Error): State {
     return { error }
   }
 
+  componentDidCatch(error: Error) {
+    this.props.onError?.(error)
+  }
+
+  componentDidUpdate(prev: Props) {
+    if (this.state.error && prev.resetKey !== this.props.resetKey) this.setState({ error: null })
+  }
+
   render() {
-    if (!this.state.error) return this.props.children
-    return (
-      <div className="status status-error" role="alert">
-        <strong>The 3D view could not start.</strong>
-        <span>This page needs WebGL. {this.state.error.message}</span>
-      </div>
-    )
+    return this.state.error ? this.props.fallback : this.props.children
   }
 }
