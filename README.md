@@ -20,7 +20,7 @@ An interactive 3D viewer for blast movement on an open-pit bench: drill holes fi
 - **The pre-blast surface**, as an optional ghost over the muck pile.
 - **Hole details.** Click a collar, or pick a hole from the keyboard Holes list, to see its depth, charge, delay, and whether it has fired.
 - **A stress scale.** Scales 1 to 4 rebuild the scenario with more holes and up to ten times the fragments, so you can watch the cost in the stats overlay.
-- **Phones.** A phone is a screen whose shorter side is under 768 px, so a phone held in landscape counts too. On a phone the viewer starts light, at scale 1 with vectors off, and the view options sit behind a Layers sheet. In portrait the camera looks down more steeply, so the block fills about 75% of the width.
+- **Phones.** A phone is a window under 768 px wide or 500 px tall or less (the same rule as the phone CSS), so a phone held in landscape counts too. On a phone the viewer starts light, at scale 1 with vectors off, and the view options sit behind a Layers sheet. In portrait the camera looks down more steeply, so the block fills about 75% of the width.
 - **No WebGL.** If the browser cannot start WebGL, the page plays a recording of the live viewer instead (`public/fallback/blast.mp4`) and never builds the scenario. If the WebGL context is lost, the viewer waits about 3 s for the browser to restore it (a phone tab coming back from the background) and carries on if it does. If it does not, or the renderer fails, the recording plays with a note that the 3D view stopped, and choosing another stress scale tries the live view again.
 
 Keys: Space plays and pauses. Left and Right step 100 ms, and so do Up and Down on the scrubber. PageUp and PageDown step 500 ms on the scrubber, and Home and End jump to the start and the end. Escape closes the topmost panel (the Layers sheet, then the hole card). A `?t=<ms>` or `?t=end` link opens the viewer at a given time, and a linked time does not autoplay. With reduced motion turned on, the viewer does not autoplay.
@@ -30,7 +30,7 @@ Keys: Space plays and pauses. Left and Right step 100 ms, and so do Up and Down 
 What works from the keyboard:
 
 - Every DOM control: the header links, the colour and stress-scale radios, the overlay switches, the Layers toggle (phones), play and pause, the time scrubber, the speed menu, and the hole card's close button. All have visible focus rings and labels.
-- Holes, through the **Holes** list in the view options. It is visually hidden and shows a hint line while it has focus; it comes after the stress scale in the tab order (on a phone, inside the Layers sheet). Up and Down (or Home and End) move through the holes, and Enter or Space opens the hole's card and moves focus to it. Escape or the close button closes the card and returns focus to the list.
+- Holes, through the **Holes** list in the view options. It is visually hidden and shows a hint line while it has focus; it comes after the stress scale in the tab order (on a phone, inside the Layers sheet). Up and Down (or Home and End) move through the holes, and Enter or Space opens the hole's card and moves focus to it. Escape or the close button closes the card and returns focus to the list (on a phone, to the Layers button).
 - The hole card is a live region, so screen readers announce it when it opens.
 
 What does not: the 3D camera. Orbit, zoom and pan are pointer and touch only, and clicking a collar in the 3D view needs a pointer (the Holes list is the keyboard route to the same card).

@@ -17,7 +17,7 @@ type Hooks = {
   __failGL?: boolean
 }
 const NOTE = 'Your browser could not start WebGL, so this is a recording of the live viewer.'
-const STOPPED = 'The 3D view stopped (graphics context lost), so this is a recording of the live viewer.'
+const STOPPED = 'The 3D view stopped working, so this is a recording of the live viewer.'
 
 async function ready(page: Page) {
   await page.goto('./')

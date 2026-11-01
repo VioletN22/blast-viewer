@@ -7,7 +7,7 @@ export type FallbackReason = 'no-webgl' | 'stopped'
 const TAIL = ', so this is a recording of the live viewer.'
 export const FALLBACK_NOTES: Record<FallbackReason, string> = {
   'no-webgl': `Your browser could not start WebGL${TAIL}`,
-  stopped: `The 3D view stopped (graphics context lost)${TAIL}`,
+  stopped: `The 3D view stopped working${TAIL}`,
 }
 
 /**
