@@ -4,7 +4,7 @@ import { Color, CylinderGeometry, InstancedMesh, MeshBasicMaterial, Object3D, Sp
 import type { Scenario } from '../sim/scenario'
 import { useBlast } from '../state/store'
 import { delayColor } from './colors'
-import { lastFireMs } from './terrainGeometry'
+import { lastFireMs } from '../sim/fire'
 
 const FLASH_MS = 320
 const HOT = new Color('#fff4d6')

@@ -2,7 +2,8 @@ import { useEffect, useMemo } from 'react'
 import { DoubleSide, MeshStandardMaterial, type WebGLProgramParametersWithUniforms } from 'three'
 import type { Scenario } from '../sim/scenario'
 import { useBlast } from '../state/store'
-import { buildTerrainGeometry, firstFireMs } from './terrainGeometry'
+import { firstFireMs } from '../sim/fire'
+import { buildTerrainGeometry } from './terrainGeometry'
 
 /**
  * Adds survey linework in the fragment shader: a faint 10 m plan grid and

@@ -75,3 +75,21 @@ body {
   font-family: ui-monospace, 'SF Mono', Menlo, monospace;
   font-size: 0.8125rem;
 }
+
+.perf-overlay {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: rgba(18, 20, 23, 0.78);
+  color: #cfd5dc;
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  user-select: none;
+}
