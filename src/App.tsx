@@ -5,7 +5,7 @@ import { Stage } from './scene/Stage'
 import { StageBoundary } from './scene/StageBoundary'
 import { TEST_HOOKS } from './scene/TestHooks'
 import { useBlast } from './state/store'
-import { deviceDefaults } from './lib/device'
+import { windowDefaults } from './lib/device'
 import { hasWebGL } from './lib/webgl'
 import type { Scenario } from './sim/scenario'
 import { Controls } from './ui/Controls'
@@ -37,7 +37,7 @@ export default function App() {
 
   useEffect(() => {
     // Phones start light (scale 1, no vectors); applied once, before the scenario loads.
-    const d = deviceDefaults(window.innerWidth)
+    const d = windowDefaults()
     if (d.scale) useBlast.getState().setScale(d.scale)
     if (d.showVectors === false) useBlast.getState().setShowVectors(false)
     let cancelled = false

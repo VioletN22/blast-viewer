@@ -169,9 +169,43 @@ test('landscape phone layers sheet scrolls inside the viewport', async ({ page }
   await page.getByRole('button', { name: 'Layers' }).click()
   const sheet = page.getByRole('group', { name: 'View options' })
   await expect(sheet).toBeVisible()
-  const { bottom, overflowY } = await sheet.evaluate((el) => ({ bottom: el.getBoundingClientRect().bottom, overflowY: getComputedStyle(el).overflowY }))
+  const { bottom, overflowY, scrollHeight, clientHeight } = await sheet.evaluate((el) => ({
+    bottom: el.getBoundingClientRect().bottom,
+    overflowY: getComputedStyle(el).overflowY,
+    scrollHeight: el.scrollHeight,
+    clientHeight: el.clientHeight,
+  }))
   expect(bottom).toBeLessThanOrEqual(360)
   expect(overflowY).toBe('auto')
+  // The content is taller than the sheet, and the sheet really scrolls.
+  expect(scrollHeight).toBeGreaterThan(clientHeight)
+  const box = (await sheet.boundingBox())!
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+  await page.mouse.wheel(0, 200)
+  await expect.poll(() => sheet.evaluate((el) => el.scrollTop)).toBeGreaterThan(0)
+})
+
+test('landscape phone at 844x390 gets the phone layout', async ({ page }) => {
+  await page.setViewportSize({ width: 844, height: 390 })
+  await ready(page)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0)
+  const rect = (sel: string) => page.locator(sel).first().evaluate((el) => {
+    const r = el.getBoundingClientRect()
+    return { left: r.left, right: r.right, top: r.top, bottom: r.bottom }
+  })
+  type R = Awaited<ReturnType<typeof rect>>
+  const overlaps = (a: R, b: R) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
+  // Closed, the controls are only the Layers toggle; it must not sit over the legend or the timeline.
+  await expect(page.getByRole('button', { name: 'Layers' })).toBeVisible()
+  await expect(page.getByRole('group', { name: 'View options' })).toBeHidden()
+  const controls = await rect('.controls-toggle')
+  expect(overlaps(controls, await rect('.legend'))).toBe(false)
+  expect(overlaps(controls, await rect('.timeline'))).toBe(false)
+  const st = await page.evaluate(() => {
+    const s = (window as unknown as { __blast: { getState(): { scale: number; showVectors: boolean } } }).__blast.getState()
+    return { scale: s.scale, showVectors: s.showVectors }
+  })
+  expect(st).toEqual({ scale: 1, showVectors: false })
 })
 
 test.describe('reduced motion changes', () => {

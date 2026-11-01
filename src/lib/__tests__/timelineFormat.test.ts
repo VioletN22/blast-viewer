@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest'
-import { deviceDefaults } from '../device'
 import { fireTicks, formatReadout, SPEEDS, DEFAULT_SPEED } from '../timelineFormat'
 
 describe('timeline format', () => {
@@ -25,11 +24,5 @@ describe('timeline format', () => {
   it('speed options and default', () => {
     expect(SPEEDS).toEqual([0.1, 0.25, 0.5, 1])
     expect(DEFAULT_SPEED).toBe(0.25)
-  })
-
-  it('phones start at scale 1 with vectors off', () => {
-    expect(deviceDefaults(375)).toEqual({ scale: 1, showVectors: false })
-    expect(deviceDefaults(767)).toEqual({ scale: 1, showVectors: false })
-    expect(deviceDefaults(768)).toEqual({})
   })
 })

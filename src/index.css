@@ -660,7 +660,8 @@ select {
 
 /* ---------- phones ---------- */
 
-@media (max-width: 767px) {
+/* Narrow screens, and short ones (a phone held in landscape is 844-932 px wide but under 500 px tall). Matches isPhone in src/lib/device.ts. */
+@media (max-width: 767px), (max-height: 500px) {
   :root {
     --gap: 0.5rem;
   }
