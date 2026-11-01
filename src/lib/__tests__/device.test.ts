@@ -8,15 +8,16 @@ describe('device', () => {
     expect(deviceDefaults(1280, 800)).toEqual({})
   })
 
-  it('a phone in landscape is still a phone (the shorter side counts)', () => {
+  it('a phone in landscape is still a phone (500 px tall or less)', () => {
     expect(isPhone(844, 390)).toBe(true)
     expect(isPhone(932, 430)).toBe(true)
     expect(deviceDefaults(844, 390)).toEqual({ scale: 1, showVectors: false })
   })
 
-  it('a short coarse-pointer screen is a phone; a tablet is not', () => {
-    expect(isPhone(1024, 500, true)).toBe(true)
-    expect(isPhone(1024, 768, true)).toBe(false)
-    expect(isPhone(1366, 1024, true)).toBe(false)
+  it('matches the phone CSS query: tablets and short desktop windows are not phones', () => {
+    expect(isPhone(1024, 500)).toBe(true)
+    expect(isPhone(1024, 768)).toBe(false)
+    expect(isPhone(1366, 650)).toBe(false)
+    expect(isPhone(1366, 1024)).toBe(false)
   })
 })

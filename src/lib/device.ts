@@ -1,25 +1,25 @@
 import type { Scale } from '../sim/scenario'
 
-/** A screen whose shorter side is below this is a phone, in either orientation. */
-export const PHONE_SHORT_SIDE = 768
-/** A touch screen this short or shorter is a phone held in landscape. The phone CSS uses the same height. */
+/** A window narrower than this is a phone held in portrait. */
+export const PHONE_MAX_WIDTH = 768
+/** A window this short or shorter is a phone held in landscape. */
 export const LANDSCAPE_PHONE_MAX_HEIGHT = 500
 
 /**
- * True for a phone: the shorter side is under 768 px (so a phone held in
- * landscape still counts), or a coarse pointer on a screen 500 px tall or less.
+ * True for a phone, matching the phone CSS media query
+ * `(max-width: 767px), (max-height: 500px)`, so layout and defaults agree.
+ * A short desktop window (e.g. 1366x650) is not a phone.
  */
-export function isPhone(width: number, height: number, coarsePointer = false): boolean {
-  return Math.min(width, height) < PHONE_SHORT_SIDE || (coarsePointer && height <= LANDSCAPE_PHONE_MAX_HEIGHT)
+export function isPhone(width: number, height: number): boolean {
+  return width < PHONE_MAX_WIDTH || height <= LANDSCAPE_PHONE_MAX_HEIGHT
 }
 
 /** Phones start light: scale 1 and no vectors. Larger screens keep the store defaults. */
-export function deviceDefaults(width: number, height: number, coarsePointer = false): { scale?: Scale; showVectors?: boolean } {
-  return isPhone(width, height, coarsePointer) ? { scale: 1, showVectors: false } : {}
+export function deviceDefaults(width: number, height: number): { scale?: Scale; showVectors?: boolean } {
+  return isPhone(width, height) ? { scale: 1, showVectors: false } : {}
 }
 
 /** The current window's defaults. */
 export function windowDefaults(): ReturnType<typeof deviceDefaults> {
-  const coarse = typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches
-  return deviceDefaults(window.innerWidth, window.innerHeight, coarse)
+  return deviceDefaults(window.innerWidth, window.innerHeight)
 }
