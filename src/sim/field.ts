@@ -7,8 +7,11 @@ import type { DrillHole, Terrain } from './types'
  * nearest holes. Forward throw decays exponentially with distance behind the
  * crest (near-crest rock about 18 to 30 m, back rows a few metres), scaled by
  * the local charge relative to the default 210.6 kg hole. The end point is then
- * dropped onto a muck-pile surface: thick in front of the face, a thin heaved
- * layer on the bench behind it, so rock never ends below the terrain.
+ * dropped onto a muck-pile surface over the post-blast ground (the floor inside
+ * the blasted footprint): the swelled rock heaves a little at the back, slumps
+ * forward over the crest and runs out across the floor. Each rock keeps its
+ * layer in the pile, so it never ends below the floor nor climbs to the old
+ * bench top.
  */
 
 /** Charge of the default hole (0.75 kg/m3 * 4.5 m * 5.2 m * 12 m). Throw scales with sqrt(charge / this). */
@@ -18,11 +21,13 @@ const THROW_DECAY_M = 7
 /** Forward throw (m) right at the crest and at the back of the block, for unit charge. */
 const THROW_CREST_M = 21
 const THROW_BASE_M = 2.5
-/** Muck-pile reach in front of the crest and its height as a fraction of the bench. */
+/** Muck-pile reach in front of the crest, metres. */
 const PILE_REACH_M = 34
-const PILE_HEIGHT_FRAC = 0.85
-/** Heave left on the bench behind the crest (back rows bulk up) and the minimum layer. */
-const BACK_HEAVE_M = 1.8
+/** Pile height as a fraction of the bench: at the back of the block (swell plus heave) and at the crest (slumped). */
+const PILE_BACK_FRAC = 1.25
+const PILE_CREST_FRAC = 0.75
+/** Distance behind the crest over which the pile rises from slumped to fully swelled, metres. */
+const PILE_RISE_M = 22
 const MIN_LAYER_M = 0.4
 
 /** Hole data laid out for fast neighbour queries (uniform grid, CSR buckets). */
@@ -40,6 +45,8 @@ export interface HoleIndex {
   maxX: number
   minZ: number
   maxZ: number
+  /** Toe of the face: the blasted footprint runs from minZ to here (the face wedge breaks out too). */
+  toeZ: number
   centreX: number
   sigma: number
   radius: number
@@ -137,6 +144,7 @@ function buildIndex(holes: DrillHole[], t: Terrain): HoleIndex {
     maxX: maxHX + spacing / 2,
     minZ: minHZ - burden / 2,
     maxZ: t.options.crestZ,
+    toeZ: t.options.crestZ + t.options.benchHeight / Math.tan((t.options.faceAngleDeg * Math.PI) / 180),
     centreX: (minHX + maxHX) / 2,
     sigma,
     radius,
@@ -193,15 +201,37 @@ function coverage(idx: HoleIndex, px: number, pz: number): number {
   return Math.max(0, 1 - Math.hypot(ox, oz) / 3)
 }
 
-/** Absolute muck-pile surface height at z, before clamping to the terrain. */
+/** Ground after the blast for a prepared index: the floor (y = 0) inside the footprint, terrain outside. */
+function groundAt(idx: HoleIndex, t: Terrain, x: number, z: number): number {
+  if (x >= idx.minX && x <= idx.maxX && z >= idx.minZ && z <= idx.toeZ) return 0
+  return t.heightAt(x, z)
+}
+
+/**
+ * Ground after the blast: inside the blasted footprint (the fragment sampling
+ * extents, carried forward to the toe of the face) the bench is gone and the
+ * ground is the floor, y = 0; outside it the ground is the terrain.
+ */
+export function groundAfterBlast(x: number, z: number, holes: DrillHole[], t: Terrain): number {
+  return groundAt(holeIndex(holes, t), t, x, z)
+}
+
+/**
+ * Absolute muck-pile surface height at z, before taking the ground into
+ * account. Behind the crest the swelled rock stands about 25 percent above
+ * the old bench at the back and slumps to 75 percent at the crest; in front it
+ * runs out across the floor. Cross-section area is about 1.3 times the block's.
+ */
 function muckTop(t: Terrain, z: number): number {
   const { benchHeight, crestZ } = t.options
   const s = z - crestZ
-  let y: number
-  if (s <= 0) y = benchHeight + BACK_HEAVE_M * Math.min(1, -s / 12)
-  else if (s < PILE_REACH_M) y = PILE_HEIGHT_FRAC * benchHeight * Math.pow(1 - s / PILE_REACH_M, 1.5)
-  else y = 0
-  return y
+  if (s <= 0) {
+    const u = Math.min(1, -s / PILE_RISE_M)
+    const rise = u * u * (3 - 2 * u)
+    return benchHeight * (PILE_CREST_FRAC + (PILE_BACK_FRAC - PILE_CREST_FRAC) * rise)
+  }
+  if (s < PILE_REACH_M) return PILE_CREST_FRAC * benchHeight * Math.pow(1 - s / PILE_REACH_M, 1.5)
+  return 0
 }
 
 /** Lateral taper of the pile thickness outside the block's x extents. */
@@ -273,11 +303,12 @@ export function endPoint(
 
   const dz = k * (THROW_BASE_M + THROW_CREST_M * f) * upper
   const dx = k * (offX * (0.4 + 1.2 * f) + 0.08 * (px - idx.centreX) * f) + cov * latJ
-  const ex = px + dx
   const ez = pz + dz
+  // Behind the toe, rock cannot push sideways into the intact bench.
+  const ex = ez < idx.toeZ ? Math.min(idx.maxX, Math.max(idx.minX, px + dx)) : px + dx
 
-  // Drop onto the muck pile, keeping the rock's layer in the bench.
-  const ground = t.heightAt(ex, ez)
+  // Drop onto the muck pile over the post-blast ground, keeping the rock's layer.
+  const ground = groundAt(idx, t, ex, ez)
   const pile = Math.max(muckTop(t, ez), ground + MIN_LAYER_M)
   const thick = (pile - ground) * flankTaper(idx, ex)
   const startTop = Math.max(1e-6, t.heightAt(px, pz))

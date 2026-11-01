@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { generateTerrain } from '../terrain'
 import { generatePattern } from '../pattern'
-import { digLine, displacementAt } from '../field'
+import { digLine, displacementAt, groundAfterBlast } from '../field'
 import { simulateBlast } from '../blast'
 
 const t = generateTerrain()
@@ -26,8 +26,24 @@ describe('field', () => {
       const x = f.end[i * 3]
       const y = f.end[i * 3 + 1]
       const z = f.end[i * 3 + 2]
-      expect(y).toBeGreaterThanOrEqual(t.heightAt(x, z) - 0.01)
+      expect(y).toBeGreaterThanOrEqual(groundAfterBlast(x, z, holes, t) - 0.01)
     }
+  })
+  it('field: back-row rock does not rise more than 6 m', () => {
+    const f = simulateBlast(t, holes, { fragmentsPerHole: 24, seed: 5 })
+    const secondBackZ = -22.5
+    let n = 0
+    for (let i = 0; i < f.count; i++) {
+      if (f.start[i * 3 + 2] >= secondBackZ) continue
+      n++
+      expect(f.end[i * 3 + 1] - f.start[i * 3 + 1]).toBeLessThanOrEqual(6)
+    }
+    expect(n).toBeGreaterThan(100)
+  })
+  it('field: ground after the blast is the floor inside the block, terrain outside', () => {
+    expect(groundAfterBlast(0, -10, holes, t)).toBe(0)
+    expect(groundAfterBlast(0, -50, holes, t)).toBeCloseTo(t.heightAt(0, -50))
+    expect(groundAfterBlast(75, -10, holes, t)).toBeCloseTo(t.heightAt(75, -10))
   })
   it('field: rock away from the pattern does not move', () => {
     const d = displacementAt([0, 12, -50], holes, t)

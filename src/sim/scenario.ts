@@ -34,7 +34,9 @@ export function buildScenario(p: ScenarioParams): Scenario {
   const cols = COLS_BY_SCALE[s]
   const pattern: Partial<PatternOptions> = {
     ...p.pattern,
+    // Scale always sets the column count, overriding any pattern.cols in the params.
     cols,
+    // Fire from the middle column unless the params name one.
     initiationCol: p.pattern?.initiationCol ?? Math.floor(cols / 2),
   }
   const spacing = pattern.spacing ?? DEFAULT_PATTERN.spacing
@@ -42,7 +44,9 @@ export function buildScenario(p: ScenarioParams): Scenario {
   const baseWidth = p.terrain?.width ?? DEFAULT_TERRAIN.width
   const terrain = generateTerrain({
     ...p.terrain,
+    // The terrain noise follows the scenario seed unless terrain.seed is given.
     seed: p.terrain?.seed ?? p.seed,
+    // Widen the terrain to the pattern span + 40 m so the muck pile stays on the ground (scale 4: 298 m).
     width: Math.max(baseWidth, Math.ceil(span + TERRAIN_MARGIN_M)),
   })
   const holes = generatePattern(terrain, pattern)
