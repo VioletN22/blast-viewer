@@ -1,6 +1,6 @@
 import { OrbitControls } from '@react-three/drei'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Vector3, type DirectionalLight, type PerspectiveCamera } from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import type { Scenario } from '../sim/scenario'
@@ -42,6 +42,10 @@ function InvalidateOnChange() {
 /** Bench-top height at (x, z): the pre-blast terrain, which is never below the post-blast ground. */
 const groundAt = (sc: Scenario, x: number, z: number) => sc.terrain.heightAt(x, z)
 
+const LANDSCAPE_DIR = new Vector3(0.28, 0.62, 0.73)
+const PORTRAIT_DIR = new Vector3(0.2, 0.78, 0.6)
+const PORTRAIT_MARGIN_M = 2
+
 /** Frames the camera on the block and the pile from the free-face side, once per scenario (load or rebuild), not on resize. */
 function Framing({ scenario }: { scenario: Scenario }) {
   const camera = useThree((s) => s.camera) as PerspectiveCamera
@@ -54,11 +58,16 @@ function Framing({ scenario }: { scenario: Scenario }) {
     const tz = (ext.minZ + ext.maxZ) / 2 - 6
     // Target on the bench surface (the bench top behind the crest), never inside the rock.
     const target = new Vector3(ext.cx, groundAt(scenario, ext.cx, tz), tz)
-    // Look in from the free face, a little off-axis, about 38 degrees down.
-    const dir = new Vector3(0.28, 0.62, 0.73).normalize()
+    // Look in from the free face, a little off-axis, about 38 degrees down. A portrait frame
+    // is bound by its width, which left a tall band of empty sky: there the view looks down
+    // more steeply (about 50 degrees) and the side margin shrinks, so the block fills about
+    // 70% of the width and the bench and pile fill more of the height.
+    const portrait = aspect < 1
+    const dir = (portrait ? PORTRAIT_DIR : LANDSCAPE_DIR).clone().normalize()
+    const margin = portrait ? PORTRAIT_MARGIN_M : 8
     // Box to keep in view: the block (with a margin) from the back row to the end of the pile, floor to bench top.
     const corners: Vector3[] = []
-    for (const x of [ext.minX - 8, ext.maxX + 8])
+    for (const x of [ext.minX - margin, ext.maxX + margin])
       for (const y of [0, 14])
         for (const z of [ext.minZ - 4, ext.maxZ]) corners.push(new Vector3(x, y, z))
     camera.aspect = aspect
@@ -66,7 +75,7 @@ function Framing({ scenario }: { scenario: Scenario }) {
     let dist = 20
     const ndc = new Vector3()
     // Walk the camera back along dir until every corner projects inside the frame.
-    for (let k = 0; k < 80; k++) {
+    for (let k = 0; k < 400; k++) {
       camera.position.copy(target).addScaledVector(dir, dist)
       camera.lookAt(target)
       camera.updateMatrixWorld()
@@ -77,7 +86,7 @@ function Framing({ scenario }: { scenario: Scenario }) {
         worst = Math.max(worst, Math.abs(ndc.x), Math.abs(ndc.y), ndc.z > 1 ? 9 : 0)
       }
       if (worst <= 0.94) break
-      dist *= 1.06
+      dist *= portrait ? 1.02 : 1.06
     }
     camera.far = dist * 8
     camera.updateProjectionMatrix()
@@ -162,9 +171,12 @@ function Lights({ scenario }: { scenario: Scenario }) {
 }
 
 export function Stage({ scenario }: { scenario: Scenario }) {
+  // A lost context (GPU reset, memory pressure) is rethrown during render, so StageBoundary shows the fallback.
+  const [lost, setLost] = useState(false)
   const playing = useBlast((s) => s.playing)
   // With the stats panel on, render continuously so the fps it shows is a real frame rate, not idle gaps.
   const showPerf = useBlast((s) => s.showPerf)
+  if (lost) throw new Error('The WebGL context was lost.')
   return (
     <Canvas
       frameloop={playing || showPerf ? 'always' : 'demand'}
@@ -172,6 +184,7 @@ export function Stage({ scenario }: { scenario: Scenario }) {
       shadows
       camera={{ fov: 38, position: [60, 90, 140], near: 0.5, far: 2000 }}
       gl={{ antialias: true, preserveDrawingBuffer: import.meta.env.DEV }}
+      onCreated={({ gl }) => gl.domElement.addEventListener('webglcontextlost', () => setLost(true), { once: true })}
       onPointerMissed={() => useBlast.getState().selectHole(null)}
       style={{ background: BG }}
     >

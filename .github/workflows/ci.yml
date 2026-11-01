@@ -20,4 +20,7 @@ jobs:
       - run: npx vitest run
       - run: npm run build
       - run: npx playwright install --with-deps chromium
-      - run: npx playwright test
+      # playwright.config's webServer rebuilds dist with VITE_E2E=1 (the e2e build, with the test
+      # hooks) and serves it; with CI set it never reuses a server. The deployed build has no hooks.
+      - name: Playwright (e2e build; smoke, ui and robust specs)
+        run: npx playwright test e2e/smoke.spec.ts e2e/ui.spec.ts e2e/robust.spec.ts
