@@ -1,6 +1,6 @@
 import { OrbitControls } from '@react-three/drei'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Vector3, type DirectionalLight, type PerspectiveCamera } from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import type { Scenario } from '../sim/scenario'
@@ -170,13 +170,44 @@ function Lights({ scenario }: { scenario: Scenario }) {
   )
 }
 
+/** How long a lost context may take to come back (a phone tab returning from the background) before the fallback shows. */
+export const CONTEXT_RESTORE_WAIT_MS = 3000
+
+/**
+ * Waits for a lost WebGL context to be restored. preventDefault on the loss
+ * tells the browser the page can restore; if no webglcontextrestored arrives
+ * within CONTEXT_RESTORE_WAIT_MS, onGiveUp runs.
+ */
+function useContextLoss(canvas: HTMLCanvasElement | null, onGiveUp: () => void) {
+  useEffect(() => {
+    if (!canvas) return
+    let timer: number | undefined
+    const onLost = (e: Event) => {
+      e.preventDefault()
+      window.clearTimeout(timer)
+      timer = window.setTimeout(onGiveUp, CONTEXT_RESTORE_WAIT_MS)
+    }
+    const onRestored = () => window.clearTimeout(timer)
+    canvas.addEventListener('webglcontextlost', onLost)
+    canvas.addEventListener('webglcontextrestored', onRestored)
+    return () => {
+      window.clearTimeout(timer)
+      canvas.removeEventListener('webglcontextlost', onLost)
+      canvas.removeEventListener('webglcontextrestored', onRestored)
+    }
+  }, [canvas, onGiveUp])
+}
+
 export function Stage({ scenario }: { scenario: Scenario }) {
-  // A lost context (GPU reset, memory pressure) is rethrown during render, so StageBoundary shows the fallback.
+  // A context that stays lost is rethrown during render, so StageBoundary shows the fallback.
   const [lost, setLost] = useState(false)
+  const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null)
+  const giveUp = useCallback(() => setLost(true), [])
+  useContextLoss(canvas, giveUp)
   const playing = useBlast((s) => s.playing)
   // With the stats panel on, render continuously so the fps it shows is a real frame rate, not idle gaps.
   const showPerf = useBlast((s) => s.showPerf)
-  if (lost) throw new Error('The WebGL context was lost.')
+  if (lost) throw new Error('The WebGL context was lost and not restored.')
   return (
     <Canvas
       frameloop={playing || showPerf ? 'always' : 'demand'}
@@ -184,7 +215,7 @@ export function Stage({ scenario }: { scenario: Scenario }) {
       shadows
       camera={{ fov: 38, position: [60, 90, 140], near: 0.5, far: 2000 }}
       gl={{ antialias: true, preserveDrawingBuffer: import.meta.env.DEV }}
-      onCreated={({ gl }) => gl.domElement.addEventListener('webglcontextlost', () => setLost(true), { once: true })}
+      onCreated={({ gl }) => setCanvas(gl.domElement)}
       onPointerMissed={() => useBlast.getState().selectHole(null)}
       style={{ background: BG }}
     >
