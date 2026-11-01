@@ -1,4 +1,5 @@
 import { simulateBlast, type Fragments } from './blast'
+import { validateScenarioParams } from './loadScenario'
 import { generatePattern } from './pattern'
 import { generateTerrain } from './terrain'
 import { DEFAULT_PATTERN, DEFAULT_TERRAIN, type DrillHole, type PatternOptions, type Terrain, type TerrainOptions } from './types'
@@ -30,6 +31,8 @@ const TERRAIN_MARGIN_M = 40
  * when the pattern would not fit with a margin.
  */
 export function buildScenario(p: ScenarioParams): Scenario {
+  // Runtime guard for untyped callers: throws a readable "Scenario params:" error on a bad shape.
+  validateScenarioParams(p)
   const s = p.scale - 1
   const cols = COLS_BY_SCALE[s]
   const pattern: Partial<PatternOptions> = {

@@ -61,4 +61,26 @@ describe('scenario', () => {
     stubFetch({}, false)
     await expect(loadScenario('x.json')).rejects.toThrow('404')
   })
+  it('loadScenario rejects counts that are not whole and sizes that are not positive', async () => {
+    const cases: [unknown, string][] = [
+      [{ seed: 1, scale: 1, pattern: { spacing: -5 } }, '"pattern.spacing"'],
+      [{ seed: 1, scale: 1, terrain: { resolution: 0 } }, '"terrain.resolution"'],
+      [{ seed: 1, scale: 1, pattern: { rows: 0 } }, '"pattern.rows"'],
+      [{ seed: 1, scale: 1, pattern: { rows: 2.5 } }, '"pattern.rows"'],
+      [{ seed: 1, scale: 1, pattern: { constructor: 3 } }, '"pattern.constructor"'],
+    ]
+    for (const [body, field] of cases) {
+      stubFetch(body)
+      const err = await loadScenario('x.json').then(
+        () => null,
+        (e: Error) => e,
+      )
+      expect(err).toBeInstanceOf(Error)
+      expect(err!.message.startsWith('Scenario params:')).toBe(true)
+      expect(err!.message).toContain(field)
+    }
+  })
+  it('buildScenario rejects a scale outside 1 to 4 at runtime', () => {
+    expect(() => buildScenario({ seed: 1, scale: 5 as never })).toThrow('Scenario params: "scale" must be 1, 2, 3 or 4')
+  })
 })

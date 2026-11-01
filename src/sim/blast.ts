@@ -17,14 +17,21 @@ export interface Fragments {
 const FLIGHT_MIN_MS = 600
 const FLIGHT_MAX_MS = 1600
 
-/** Samples fragments through the blasted block and resolves where each lands. */
+/** Samples fragments through the blasted footprint and resolves where each lands. Zero holes gives empty fragments. */
 export function simulateBlast(
   t: Terrain,
   holes: DrillHole[],
   opts: { fragmentsPerHole: number; seed: number },
 ): Fragments {
-  const idx = holeIndex(holes, t)
   const count = holes.length * Math.max(0, Math.floor(opts.fragmentsPerHole))
+  if (count === 0) {
+    const empty = new Float32Array(0)
+    return { count: 0, start: empty, end: empty, fireMs: empty, flightMs: empty, magnitude: empty, maxMagnitude: 0 }
+  }
+  const idx = holeIndex(holes, t)
+  // Rejection-sample uniformly by volume through the blasted footprint: the
+  // block behind the crest plus the face wedge out to the toe.
+  const yMax = t.options.benchHeight + 0.5
   const start = new Float32Array(count * 3)
   const end = new Float32Array(count * 3)
   const fireMs = new Float32Array(count)
@@ -34,9 +41,20 @@ export function simulateBlast(
   let maxMagnitude = 0
 
   for (let i = 0; i < count; i++) {
-    const x = randRange(rng, idx.minX, idx.maxX)
-    const z = randRange(rng, idx.minZ, idx.maxZ)
-    const y = randRange(rng, 0, t.heightAt(x, z))
+    let x = 0
+    let y = 0
+    let z = 0
+    for (let tries = 0; ; tries++) {
+      x = randRange(rng, idx.minX, idx.maxX)
+      z = randRange(rng, idx.minZ, idx.toeZ)
+      y = randRange(rng, 0, yMax)
+      const top = t.heightAt(x, z)
+      if (y <= top) break
+      if (tries > 64) {
+        y = top > 0 ? y * (top / yMax) : 0
+        break
+      }
+    }
     const o = i * 3
     start[o] = x
     start[o + 1] = y
@@ -54,8 +72,12 @@ export function simulateBlast(
   return { count, start, end, fireMs, flightMs, magnitude, maxMagnitude }
 }
 
-/** Arc peak above the straight path, metres, for a fragment moving m metres. */
-const arcPeak = (m: number) => 1.5 + 0.3 * m
+/**
+ * Arc peak above the straight path, metres, for a fragment moving m metres and
+ * ending rise metres higher than it started (a final rise already counts toward
+ * the heave). Back rows heave 2 to 5 m in all; crest rock arcs about 8 m.
+ */
+const arcPeak = (m: number, rise: number) => 2.3 + 0.2 * m - 0.4 * Math.max(0, rise)
 
 /**
  * Position of fragment i at tMs, written to out[offset..offset+2]. Before fire:
@@ -82,7 +104,7 @@ export function positionAt(f: Fragments, i: number, tMs: number, out: Float32Arr
   const inv = 1 - u
   const h = 1 - inv * inv // ease-out: fast launch, slowing toward landing
   const v = u * u * (3 - 2 * u) // smoothstep for the vertical baseline
-  const arc = arcPeak(f.magnitude[i]) * 4 * u * inv
+  const arc = arcPeak(f.magnitude[i], f.end[o + 1] - f.start[o + 1]) * 4 * u * inv
   out[offset] = f.start[o] + (f.end[o] - f.start[o]) * h
   out[offset + 1] = f.start[o + 1] + (f.end[o + 1] - f.start[o + 1]) * v + arc
   out[offset + 2] = f.start[o + 2] + (f.end[o + 2] - f.start[o + 2]) * h

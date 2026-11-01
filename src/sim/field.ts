@@ -5,7 +5,8 @@ import type { DrillHole, Terrain } from './types'
  *
  * Model: rock moves toward the free face (+z) and slightly outward from the
  * nearest holes. Forward throw decays exponentially with distance behind the
- * crest (near-crest rock about 18 to 30 m, back rows a few metres), scaled by
+ * crest (near-crest rock about 18 to 30 m, back rows about a metre, so
+ * they heave mostly vertically and settle about in place), scaled by
  * the local charge relative to the default 210.6 kg hole. The end point is then
  * dropped onto a muck-pile surface over the post-blast ground (the floor inside
  * the blasted footprint): the swelled rock heaves a little at the back, slumps
@@ -18,13 +19,15 @@ import type { DrillHole, Terrain } from './types'
 export const REF_CHARGE_KG = 210.6
 /** e-folding distance of forward throw behind the crest, metres. */
 const THROW_DECAY_M = 7
-/** Forward throw (m) right at the crest and at the back of the block, for unit charge. */
+/** Forward throw (m) at the crest for unit charge, decaying behind it; plus a small floor so back rows still creep forward. */
 const THROW_CREST_M = 21
-const THROW_BASE_M = 2.5
+const THROW_FLOOR_M = 0.4
+/** The field tapers to 0 over this distance outside the blasted footprint (smoothstep), metres. */
+const TAPER_M = 3.5
 /** Muck-pile reach in front of the crest, metres. */
 const PILE_REACH_M = 34
 /** Pile height as a fraction of the bench: at the back of the block (swell plus heave) and at the crest (slumped). */
-const PILE_BACK_FRAC = 1.25
+const PILE_BACK_FRAC = 1.2
 const PILE_CREST_FRAC = 0.75
 /** Distance behind the crest over which the pile rises from slumped to fully swelled, metres. */
 const PILE_RISE_M = 22
@@ -40,7 +43,7 @@ export interface HoleIndex {
   meanCharge: number
   burden: number
   spacing: number
-  /** Blasted block: x in [minX, maxX], z in [minZ, maxZ]. */
+  /** Blasted block: x in [minX, maxX], z in [minZ, maxZ = crest]; the footprint continues to toeZ. */
   minX: number
   maxX: number
   minZ: number
@@ -57,11 +60,18 @@ export interface HoleIndex {
   grows: number
   cellStart: Int32Array
   cellHoles: Int32Array
+  /** Scratch for gatherNear: candidate hole indices and their squared plan distances. */
+  nearIdx: Int32Array
+  nearD2: Float64Array
 }
 
 const cache = new WeakMap<DrillHole[], { t: Terrain; idx: HoleIndex }>()
 
-/** Builds (or reuses) the neighbour index for a hole list on a terrain. */
+/**
+ * Builds (or reuses) the neighbour index for a hole list on a terrain. The
+ * cache keys on the array's identity and assumes the holes array (and its
+ * holes) is never mutated after first use; build a new array to change holes.
+ */
 export function holeIndex(holes: DrillHole[], t: Terrain): HoleIndex {
   const hit = cache.get(holes)
   if (hit && hit.t === t) return hit.idx
@@ -155,30 +165,49 @@ function buildIndex(holes: DrillHole[], t: Terrain): HoleIndex {
     grows,
     cellStart,
     cellHoles,
+    nearIdx: new Int32Array(n),
+    nearD2: new Float64Array(n),
   }
 }
 
-/** Index of the hole nearest to (px, pz) in plan. */
-export function nearestHole(idx: HoleIndex, px: number, pz: number): number {
+/**
+ * Collects the holes in the 3x3 grid cells around (px, pz) into idx.nearIdx and
+ * idx.nearD2 and returns how many there are. Allocation-free; the buffers are
+ * overwritten by the next call.
+ */
+function gatherNear(idx: HoleIndex, px: number, pz: number): number {
   const c0 = Math.floor((px - idx.gx0) / idx.cell)
   const r0 = Math.floor((pz - idx.gz0) / idx.cell)
-  let best = -1
-  let bestD = Infinity
-  for (let r = r0 - 1; r <= r0 + 1; r++) {
-    if (r < 0 || r >= idx.grows) continue
-    for (let c = c0 - 1; c <= c0 + 1; c++) {
-      if (c < 0 || c >= idx.gcols) continue
+  const rLo = Math.max(0, r0 - 1)
+  const rHi = Math.min(idx.grows - 1, r0 + 1)
+  const cLo = Math.max(0, c0 - 1)
+  const cHi = Math.min(idx.gcols - 1, c0 + 1)
+  let n = 0
+  for (let r = rLo; r <= rHi; r++) {
+    for (let c = cLo; c <= cHi; c++) {
       const k = r * idx.gcols + c
       for (let m = idx.cellStart[k]; m < idx.cellStart[k + 1]; m++) {
         const i = idx.cellHoles[m]
         const dx = px - idx.x[i]
         const dz = pz - idx.z[i]
-        const d = dx * dx + dz * dz
-        if (d < bestD) {
-          bestD = d
-          best = i
-        }
+        idx.nearIdx[n] = i
+        idx.nearD2[n] = dx * dx + dz * dz
+        n++
       }
+    }
+  }
+  return n
+}
+
+/** Index of the hole nearest to (px, pz) in plan. */
+export function nearestHole(idx: HoleIndex, px: number, pz: number): number {
+  let best = -1
+  let bestD = Infinity
+  const n = gatherNear(idx, px, pz)
+  for (let m = 0; m < n; m++) {
+    if (idx.nearD2[m] < bestD) {
+      bestD = idx.nearD2[m]
+      best = idx.nearIdx[m]
     }
   }
   if (best >= 0 && bestD <= idx.cell * idx.cell) return best
@@ -194,11 +223,12 @@ export function nearestHole(idx: HoleIndex, px: number, pz: number): number {
   return best
 }
 
-/** 1 inside the blasted block, falling to 0 three metres outside it. */
+/** 1 inside the blasted footprint, easing (smoothstep) to 0 at TAPER_M outside it. */
 function coverage(idx: HoleIndex, px: number, pz: number): number {
   const ox = Math.max(0, idx.minX - px, px - idx.maxX)
-  const oz = Math.max(0, idx.minZ - pz, pz - idx.maxZ)
-  return Math.max(0, 1 - Math.hypot(ox, oz) / 3)
+  const oz = Math.max(0, idx.minZ - pz, pz - idx.toeZ)
+  const u = Math.max(0, 1 - Math.hypot(ox, oz) / TAPER_M)
+  return u * u * (3 - 2 * u)
 }
 
 /** Ground after the blast for a prepared index: the floor (y = 0) inside the footprint, terrain outside. */
@@ -213,14 +243,15 @@ function groundAt(idx: HoleIndex, t: Terrain, x: number, z: number): number {
  * ground is the floor, y = 0; outside it the ground is the terrain.
  */
 export function groundAfterBlast(x: number, z: number, holes: DrillHole[], t: Terrain): number {
+  if (holes.length === 0) return t.heightAt(x, z)
   return groundAt(holeIndex(holes, t), t, x, z)
 }
 
 /**
  * Absolute muck-pile surface height at z, before taking the ground into
- * account. Behind the crest the swelled rock stands about 25 percent above
+ * account. Behind the crest the swelled rock stands about 20 percent above
  * the old bench at the back and slumps to 75 percent at the crest; in front it
- * runs out across the floor. Cross-section area is about 1.3 times the block's.
+ * runs out across the floor. Cross-section area is about 1.28 times the block and wedge (swell).
  */
 function muckTop(t: Terrain, z: number): number {
   const { benchHeight, crestZ } = t.options
@@ -269,28 +300,18 @@ export function endPoint(
   // Local charge and outward offset from the nearby holes (Gaussian weights).
   const inv2s2 = 1 / (2 * idx.sigma * idx.sigma)
   const r2max = idx.radius * idx.radius
-  const c0 = Math.floor((px - idx.gx0) / idx.cell)
-  const r0 = Math.floor((pz - idx.gz0) / idx.cell)
   let wSum = 0
   let qSum = 0
   let offX = 0
-  for (let r = r0 - 1; r <= r0 + 1; r++) {
-    if (r < 0 || r >= idx.grows) continue
-    for (let c = c0 - 1; c <= c0 + 1; c++) {
-      if (c < 0 || c >= idx.gcols) continue
-      const k = r * idx.gcols + c
-      for (let m = idx.cellStart[k]; m < idx.cellStart[k + 1]; m++) {
-        const i = idx.cellHoles[m]
-        const dx = px - idx.x[i]
-        const dz = pz - idx.z[i]
-        const d2 = dx * dx + dz * dz
-        if (d2 > r2max) continue
-        const w = Math.exp(-d2 * inv2s2)
-        wSum += w
-        qSum += w * idx.charge[i]
-        offX += w * dx
-      }
-    }
+  const near = gatherNear(idx, px, pz)
+  for (let m = 0; m < near; m++) {
+    const d2 = idx.nearD2[m]
+    if (d2 > r2max) continue
+    const i = idx.nearIdx[m]
+    const w = Math.exp(-d2 * inv2s2)
+    wSum += w
+    qSum += w * idx.charge[i]
+    offX += w * (px - idx.x[i])
   }
   const q = wSum > 1e-9 ? qSum / wSum : idx.meanCharge
   if (wSum > 1e-9) offX /= wSum
@@ -301,14 +322,25 @@ export function endPoint(
   const upper = 0.9 + 0.2 * Math.min(1, Math.max(0, py / benchHeight))
   const k = cov * cs * throwJ
 
-  const dz = k * (THROW_BASE_M + THROW_CREST_M * f) * upper
-  const dx = k * (offX * (0.4 + 1.2 * f) + 0.08 * (px - idx.centreX) * f) + cov * latJ
+  const dz = k * (THROW_FLOOR_M + THROW_CREST_M * f) * upper
+  let dx = k * (offX * (0.2 + 1.4 * f) + 0.08 * (px - idx.centreX) * f) + cov * latJ * (0.3 + 0.7 * f)
   const ez = pz + dz
-  // Behind the toe, rock cannot push sideways into the intact bench.
-  const ex = ez < idx.toeZ ? Math.min(idx.maxX, Math.max(idx.minX, px + dx)) : px + dx
 
-  // Drop onto the muck pile over the post-blast ground, keeping the rock's layer.
-  const ground = groundAt(idx, t, ex, ez)
+  // Rock may not travel sideways through the intact bench or face beside the
+  // block: its plan path must stay inside the footprint's x range until it has
+  // cleared the toe. tau is the fraction of the path at which it reaches the toe.
+  const tau = ez > idx.toeZ ? Math.max(0, (idx.toeZ - pz) / (ez - pz)) : 1
+  if (tau > 0) {
+    const lo = Math.min(idx.minX, px)
+    const hi = Math.max(idx.maxX, px)
+    if (px + tau * dx > hi) dx = (hi - px) / tau
+    if (px + tau * dx < lo) dx = (lo - px) / tau
+  }
+  const ex = px + dx
+
+  // Drop onto the muck pile over the post-blast ground, keeping the rock's
+  // layer. Short of the toe the ground under moved rock is the blasted floor.
+  const ground = ez < idx.toeZ ? 0 : groundAt(idx, t, ex, ez)
   const pile = Math.max(muckTop(t, ez), ground + MIN_LAYER_M)
   const thick = (pile - ground) * flankTaper(idx, ex)
   const startTop = Math.max(1e-6, t.heightAt(px, pz))
@@ -324,6 +356,7 @@ const scratch = new Float64Array(3)
 
 /** Final displacement of rock at p (end minus start), metres. */
 export function displacementAt(p: [number, number, number], holes: DrillHole[], t: Terrain): [number, number, number] {
+  if (holes.length === 0) return [0, 0, 0]
   endPoint(holeIndex(holes, t), t, p[0], p[1], p[2], 1, 0, 0, scratch)
   return [scratch[0] - p[0], scratch[1] - p[1], scratch[2] - p[2]]
 }
@@ -335,6 +368,7 @@ const DIG_LINE_POINTS = 48
  * runs from the back of the block to the crest. whenMoved displaces each point.
  */
 export function digLine(t: Terrain, holes: DrillHole[], whenMoved: boolean): Float32Array {
+  if (holes.length === 0) return new Float32Array(0)
   const idx = holeIndex(holes, t)
   const out = new Float32Array(DIG_LINE_POINTS * 3)
   const y = t.options.benchHeight / 2

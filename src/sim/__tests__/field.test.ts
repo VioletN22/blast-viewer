@@ -7,6 +7,9 @@ import { simulateBlast } from '../blast'
 const t = generateTerrain()
 const holes = generatePattern(t)
 const len = (d: [number, number, number]) => Math.hypot(d[0], d[1], d[2])
+const backRowZ = Math.min(...holes.map((h) => h.z))
+const burden = Math.min(...holes.filter((h) => h.z > backRowZ + 1e-6).map((h) => h.z - backRowZ))
+const backEdgeZ = backRowZ - burden / 2
 
 describe('field', () => {
   it('field: front-row rock moves toward +z', () => {
@@ -37,6 +40,9 @@ describe('field', () => {
       if (f.start[i * 3 + 2] >= secondBackZ) continue
       n++
       expect(f.end[i * 3 + 1] - f.start[i * 3 + 1]).toBeLessThanOrEqual(6)
+      // Back rock ends at about its start x and z (no slot against the back wall).
+      expect(Math.abs(f.end[i * 3] - f.start[i * 3])).toBeLessThanOrEqual(2)
+      expect(Math.abs(f.end[i * 3 + 2] - f.start[i * 3 + 2])).toBeLessThanOrEqual(2)
     }
     expect(n).toBeGreaterThan(100)
   })
@@ -44,6 +50,28 @@ describe('field', () => {
     expect(groundAfterBlast(0, -10, holes, t)).toBe(0)
     expect(groundAfterBlast(0, -50, holes, t)).toBeCloseTo(t.heightAt(0, -50))
     expect(groundAfterBlast(75, -10, holes, t)).toBeCloseTo(t.heightAt(75, -10))
+  })
+  it('field: back rows heave mostly vertically', () => {
+    for (const z of [backRowZ, backEdgeZ]) {
+      for (const y of [6, 11]) {
+        const d = displacementAt([0, y, z], holes, t)
+        expect(d[2]).toBeGreaterThan(0)
+        expect(d[1]).toBeGreaterThan(Math.abs(d[2]))
+      }
+    }
+  })
+  it('field: displacement tapers smoothly to 0 behind the back row', () => {
+    for (const x of [0, 20]) {
+      for (const y of [0.5, 6, 11]) {
+        let prev = displacementAt([x, y, backRowZ], holes, t)
+        for (let k = 1; k <= 12; k++) {
+          const d = displacementAt([x, y, backRowZ - 0.5 * k], holes, t)
+          expect(Math.hypot(d[0] - prev[0], d[1] - prev[1], d[2] - prev[2])).toBeLessThanOrEqual(1)
+          prev = d
+        }
+        expect(len(prev)).toBeLessThan(0.05)
+      }
+    }
   })
   it('field: rock away from the pattern does not move', () => {
     const d = displacementAt([0, 12, -50], holes, t)
