@@ -6,6 +6,8 @@ export const SPEEDS = [0.1, 0.25, 0.5, 1] as const
 export const DEFAULT_SPEED = 0.25
 /** Arrow keys move the time by this much. */
 export const STEP_MS = 100
+/** PageUp/PageDown on the scrubber move the time by this much. */
+export const PAGE_STEP_MS = 500
 /** Below this width the page treats the device as a phone. */
 export const PHONE_MAX_WIDTH = 768
 

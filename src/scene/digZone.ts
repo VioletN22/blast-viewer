@@ -16,7 +16,7 @@ export interface DigZone {
 
 /** Ore-zone outline before and after the blast, with each point's fire and flight time. Built once per scenario. */
 export function buildDigZone(sc: Scenario): DigZone {
-  const { terrain, holes, fragments } = sc
+  const { terrain, holes, fragments, durationMs } = sc
   const from = digLine(terrain, holes, false)
   const to = digLine(terrain, holes, true)
   const n = from.length / 3
@@ -26,8 +26,10 @@ export function buildDigZone(sc: Scenario): DigZone {
     const idx = holeIndex(holes, terrain)
     for (let i = 0; i < n; i++) {
       const o = i * 3
-      fire[i] = holes[nearestHole(idx, from[o], from[o + 2])].delayMs
-      flight[i] = flightFor(Math.hypot(to[o] - from[o], to[o + 1] - from[o + 1], to[o + 2] - from[o + 2]), fragments.maxMagnitude)
+      // Clamp fire + flight to the duration, so the last frame is exactly the moved outline.
+      fire[i] = Math.min(holes[nearestHole(idx, from[o], from[o + 2])].delayMs, durationMs)
+      const f = flightFor(Math.hypot(to[o] - from[o], to[o + 1] - from[o + 1], to[o + 2] - from[o + 2]), fragments.maxMagnitude)
+      flight[i] = Math.min(f, durationMs - fire[i])
     }
   }
   return { from, to, fire, flight }
@@ -38,7 +40,8 @@ export function digZoneAt(z: DigZone, timeMs: number, out: Float32Array): void {
   const { from, to, fire, flight } = z
   for (let i = 0; i < fire.length; i++) {
     const local = timeMs - fire[i]
-    const u = local <= 0 ? 0 : local >= flight[i] ? 1 : ease(local / flight[i])
+    // The end test first, so a point clamped to zero flight lands at t = fire.
+    const u = local >= flight[i] && local >= 0 ? 1 : local <= 0 ? 0 : ease(local / flight[i])
     const o = i * 3
     out[o] = from[o] + (to[o] - from[o]) * u
     out[o + 1] = from[o + 1] + (to[o + 1] - from[o + 1]) * u

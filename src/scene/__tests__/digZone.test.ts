@@ -15,3 +15,13 @@ describe('dig zone animation', () => {
     expect(Array.from(out)).toEqual(Array.from(digLine(sc.terrain, sc.holes, true)))
   })
 })
+
+describe('dig zone at stress scale', () => {
+  it('ends exactly at digLine(..., true) at scale 4, seed 7', () => {
+    const big = buildScenario({ seed: 7, scale: 4 })
+    const z = buildDigZone(big)
+    const out = new Float32Array(z.from.length)
+    digZoneAt(z, big.durationMs, out)
+    expect(Array.from(out)).toEqual(Array.from(digLine(big.terrain, big.holes, true)))
+  })
+})
