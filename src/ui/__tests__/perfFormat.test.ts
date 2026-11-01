@@ -25,3 +25,9 @@ describe('formatPerf', () => {
     expect(l[3]).toBe('1 instance')
   })
 })
+
+describe('formatPerf edge', () => {
+  it('999,600 triangles is 1.0M, not 1000k', () => {
+    expect(formatPerf({ fps: 60, calls: 2, triangles: 999_600, instances: 2 })[2]).toBe('1.0M triangles')
+  })
+})

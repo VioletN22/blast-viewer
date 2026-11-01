@@ -361,33 +361,48 @@ export function displacementAt(p: [number, number, number], holes: DrillHole[], 
   return [scratch[0] - p[0], scratch[1] - p[1], scratch[2] - p[2]]
 }
 
-const DIG_LINE_POINTS = 48
+/** Points on the ore-zone outline, last equal to the first. */
+const DIG_LINE_POINTS = 96
 
 /**
- * Ore/waste boundary at mid-bench (xyz triplets): a gently curving contact that
- * runs from the back of the block to the crest. whenMoved displaces each point.
+ * Ore zone at mid-bench: a closed lens (xyz triplets, last point equals the
+ * first) lying diagonally across the block, from near the crest at one side to
+ * the back rows at the other, about 40% of the block's plan area. whenMoved
+ * displaces each point with endPoint, so the crest end is thrown well over the
+ * face and the zone stretches while its back edge barely moves.
  */
 export function digLine(t: Terrain, holes: DrillHole[], whenMoved: boolean): Float32Array {
   if (holes.length === 0) return new Float32Array(0)
   const idx = holeIndex(holes, t)
   const out = new Float32Array(DIG_LINE_POINTS * 3)
   const y = t.options.benchHeight / 2
-  const halfSpan = (idx.maxX - idx.minX) / 2
-  const z0 = idx.minZ
-  const z1 = idx.maxZ
+  const halfW = (idx.maxX - idx.minX) / 2
+  const halfD = (idx.maxZ - idx.minZ) / 2
+  const midZ = (idx.maxZ + idx.minZ) / 2
+  // Ellipse with semi-axes 1.0 and 0.5 in block-normalised coordinates (area pi/2 of 4 = 39%), turned 45 degrees
+  // so its long axis runs from the crest side at -x to the back rows at +x; a slow wobble keeps it organic.
+  const c = Math.SQRT1_2
+  const n = DIG_LINE_POINTS - 1
   for (let i = 0; i < DIG_LINE_POINTS; i++) {
-    const u = i / (DIG_LINE_POINTS - 1)
-    const z = z0 + (z1 - z0) * u
-    const x = idx.centreX + halfSpan * (0.12 * (u - 0.5) + 0.05 * Math.sin(u * Math.PI * 3))
+    const phi = ((i % n) / n) * Math.PI * 2
+    const wob = 1 + 0.07 * Math.sin(3 * phi + 0.6) + 0.04 * Math.sin(5 * phi)
+    const ex = Math.cos(phi) * 1.0 * wob
+    const ez = Math.sin(phi) * 0.5 * wob
+    // Rotate: long axis (1,0) -> (c, c) in (x', z'), with +z' toward the crest, so -x end is at the crest.
+    const nx = c * ex - c * ez
+    const nz = -(c * ex + c * ez)
+    const x = idx.centreX + halfW * nx
+    const z = midZ + halfD * nz
+    const o = i * 3
     if (whenMoved) {
       endPoint(idx, t, x, y, z, 1, 0, 0, scratch)
-      out[i * 3] = scratch[0]
-      out[i * 3 + 1] = scratch[1]
-      out[i * 3 + 2] = scratch[2]
+      out[o] = scratch[0]
+      out[o + 1] = scratch[1]
+      out[o + 2] = scratch[2]
     } else {
-      out[i * 3] = x
-      out[i * 3 + 1] = y
-      out[i * 3 + 2] = z
+      out[o] = x
+      out[o + 1] = y
+      out[o + 2] = z
     }
   }
   return out

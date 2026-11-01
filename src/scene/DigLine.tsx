@@ -1,116 +1,116 @@
-import { useFrame } from '@react-three/fiber'
+import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo } from 'react'
-import { BufferAttribute, BufferGeometry, DoubleSide, Line, LineBasicMaterial, LineDashedMaterial, Mesh, MeshBasicMaterial } from 'three'
-import { digLine, holeIndex, nearestHole } from '../sim/field'
+import { BufferAttribute, BufferGeometry, DoubleSide, InterleavedBufferAttribute, Mesh, MeshBasicMaterial } from 'three'
+import { Line2, LineGeometry, LineMaterial } from 'three-stdlib'
 import type { Scenario } from '../sim/scenario'
 import { useBlast } from '../state/store'
+import { buildDigZone, digZoneAt } from './digZone'
 
-/** Time a point takes to travel once its nearest hole has fired, ms. */
-const FLIGHT_MS = 1000
-/** Half height of the translucent curtain hung on each line, metres: a one-pixel line alone is lost in the muck. */
-const CURTAIN_M = 3
 const BEFORE = '#ffffff'
 const AFTER = '#ffb020'
+const LINE_PX = 3
 
-function fillRibbon(r: Float32Array, line: Float32Array, n: number) {
-  for (let i = 0; i < n; i++) {
-    for (let k = 0; k < 2; k++) {
-      const o = i * 6 + k * 3
-      r[o] = line[i * 3]
-      r[o + 1] = line[i * 3 + 1] + (k === 0 ? -CURTAIN_M : CURTAIN_M)
-      r[o + 2] = line[i * 3 + 2]
-    }
+/** Writes a closed polyline (xyz triplets) into a Line2 geometry's segment buffer in place. */
+function writeSegments(g: LineGeometry, pts: Float32Array) {
+  const start = g.getAttribute('instanceStart') as InterleavedBufferAttribute
+  const arr = start.data.array as Float32Array
+  const n = pts.length / 3
+  for (let i = 0; i < n - 1; i++) {
+    const a = i * 3
+    const o = i * 6
+    for (let k = 0; k < 6; k++) arr[o + k] = pts[a + k]
   }
+  start.data.needsUpdate = true
 }
 
-const ease = (u: number) => 1 - (1 - u) * (1 - u)
-
 /**
- * The ore/waste contact at mid-bench. The "before" line is static and dashed
- * white; the "after" line is solid amber and each point eases from its
- * unmoved to its moved position over its nearest hole's fire time plus a
- * flight time, so after the blast it equals digLine(..., true). Both are
- * drawn through the rock (depthTest off) because the line sits inside it.
+ * The ore zone at mid-bench as a closed outline. Before: static dashed white.
+ * After: solid amber with a faint fill, each point easing from its unmoved to
+ * its moved position on the fragments' fire and flight times, so at the end it
+ * equals digLine(..., true). Drawn through the rock (depthTest off), with fat
+ * lines (Line2) because WebGL ignores linewidth.
  */
 export function DigLine({ scenario }: { scenario: Scenario }) {
-  const { terrain, holes } = scenario
-  const show = useBlast((s) => s.showDigLine)
+  const size = useThree((s) => s.size)
+  const zone = useMemo(() => buildDigZone(scenario), [scenario])
   const d = useMemo(() => {
-    const from = digLine(terrain, holes, false)
-    const to = digLine(terrain, holes, true)
-    const n = from.length / 3
-    const fire = new Float32Array(n)
-    if (holes.length > 0) {
-      const idx = holeIndex(holes, terrain)
-      for (let i = 0; i < n; i++) fire[i] = holes[nearestHole(idx, from[i * 3], from[i * 3 + 2])].delayMs
-    }
-    const mk = (arr: Float32Array) => {
-      const g = new BufferGeometry()
-      g.setAttribute('position', new BufferAttribute(arr, 3))
-      return g
-    }
-    /** Vertical ribbon along a polyline: two vertices per point, CURTAIN_M above and below it. */
-    const ribbon = (src: Float32Array, color: string, opacity: number) => {
-      const r = new Float32Array(n * 6)
-      const g = new BufferGeometry()
-      g.setAttribute('position', new BufferAttribute(r, 3))
-      const index: number[] = []
-      for (let i = 0; i < n - 1; i++) index.push(2 * i, 2 * i + 1, 2 * i + 2, 2 * i + 1, 2 * i + 3, 2 * i + 2)
-      g.setIndex(index)
-      const m = new Mesh(g, new MeshBasicMaterial({ color, transparent: true, opacity, depthTest: false, depthWrite: false, side: DoubleSide }))
-      m.renderOrder = 29
-      m.frustumCulled = false
-      m.visible = false
-      fillRibbon(r, src, n)
-      return m
-    }
-    const before = new Line(mk(from), new LineDashedMaterial({ color: BEFORE, dashSize: 2, gapSize: 1.4, depthTest: false, depthWrite: false, transparent: true, opacity: 0.9 }))
-    before.computeLineDistances()
-    const live = new Float32Array(from)
-    const after = new Line(mk(live), new LineBasicMaterial({ color: AFTER, depthTest: false, depthWrite: false, transparent: true }))
-    const beforeBand = ribbon(from, BEFORE, 0.1)
-    const afterBand = ribbon(from, AFTER, 0.22)
-    for (const l of [before, after]) {
-      l.renderOrder = 30
+    const n = zone.from.length / 3
+    const mkLine = (color: string, dashed: boolean) => {
+      const g = new LineGeometry()
+      g.setPositions(zone.from)
+      const m = new LineMaterial({ color: new MeshBasicMaterial({ color }).color.getHex(), linewidth: LINE_PX, worldUnits: false, dashed, dashSize: 2.2, gapSize: 1.6, transparent: true, depthTest: false, depthWrite: false })
+      const l = new Line2(g, m)
+      if (dashed) l.computeLineDistances()
+      l.renderOrder = 31
       l.frustumCulled = false
       l.visible = false
+      return l
     }
-    return { from, to, fire, live, before, after, beforeBand, afterBand, last: -1 }
-  }, [terrain, holes])
+    const before = mkLine(BEFORE, true)
+    const after = mkLine(AFTER, false)
+    // Fill: a triangle fan from the centroid (the zone is a convex-ish lens), rewritten each change.
+    const fillPos = new Float32Array((n + 1) * 3)
+    const fg = new BufferGeometry()
+    fg.setAttribute('position', new BufferAttribute(fillPos, 3))
+    const idx: number[] = []
+    for (let i = 0; i < n - 1; i++) idx.push(n, i, i + 1)
+    fg.setIndex(idx)
+    const fill = new Mesh(fg, new MeshBasicMaterial({ color: AFTER, transparent: true, opacity: 0.16, depthTest: false, depthWrite: false, side: DoubleSide }))
+    fill.renderOrder = 30
+    fill.frustumCulled = false
+    fill.visible = false
+    return { before, after, fill, fillPos, live: new Float32Array(zone.from), last: -1 }
+  }, [zone])
   useEffect(
     () => () => {
-      for (const l of [d.before, d.after, d.beforeBand, d.afterBand]) {
-        l.geometry.dispose()
-        ;(l.material as LineBasicMaterial).dispose()
+      for (const o of [d.before, d.after]) {
+        o.geometry.dispose()
+        o.material.dispose()
       }
+      d.fill.geometry.dispose()
+      ;(d.fill.material as MeshBasicMaterial).dispose()
     },
     [d],
   )
+  useEffect(() => {
+    d.before.material.resolution.set(size.width, size.height)
+    d.after.material.resolution.set(size.width, size.height)
+  }, [d, size])
 
   useFrame(() => {
+    // The only visibility gate: the objects stay mounted so toggling does not rebuild buffers.
     const { timeMs, showDigLine } = useBlast.getState()
-    d.before.visible = d.after.visible = d.beforeBand.visible = d.afterBand.visible = showDigLine
+    d.before.visible = d.after.visible = d.fill.visible = showDigLine
     if (!showDigLine || d.last === timeMs) return
     d.last = timeMs
-    const { from, to, fire, live } = d
-    for (let i = 0; i < fire.length; i++) {
-      const u = ease(Math.min(1, Math.max(0, (timeMs - fire[i]) / FLIGHT_MS)))
-      const o = i * 3
-      live[o] = from[o] + (to[o] - from[o]) * u
-      live[o + 1] = from[o + 1] + (to[o + 1] - from[o + 1]) * u
-      live[o + 2] = from[o + 2] + (to[o + 2] - from[o + 2]) * u
+    const { live, fillPos } = d
+    digZoneAt(zone, timeMs, live)
+    writeSegments(d.after.geometry, live)
+    const n = live.length / 3
+    let cx = 0
+    let cy = 0
+    let cz = 0
+    for (let i = 0; i < n - 1; i++) {
+      cx += live[i * 3]
+      cy += live[i * 3 + 1]
+      cz += live[i * 3 + 2]
+      fillPos[i * 3] = live[i * 3]
+      fillPos[i * 3 + 1] = live[i * 3 + 1]
+      fillPos[i * 3 + 2] = live[i * 3 + 2]
     }
-    ;(d.after.geometry.getAttribute('position') as BufferAttribute).needsUpdate = true
-    const band = d.afterBand.geometry.getAttribute('position') as BufferAttribute
-    fillRibbon(band.array as Float32Array, live, fire.length)
-    band.needsUpdate = true
+    fillPos[(n - 1) * 3] = live[(n - 1) * 3]
+    fillPos[(n - 1) * 3 + 1] = live[(n - 1) * 3 + 1]
+    fillPos[(n - 1) * 3 + 2] = live[(n - 1) * 3 + 2]
+    fillPos[n * 3] = cx / (n - 1)
+    fillPos[n * 3 + 1] = cy / (n - 1)
+    fillPos[n * 3 + 2] = cz / (n - 1)
+    ;(d.fill.geometry.getAttribute('position') as BufferAttribute).needsUpdate = true
   })
 
-  if (holes.length === 0 || !show) return null
+  if (zone.from.length === 0) return null
   return (
     <>
-      <primitive object={d.beforeBand} />
-      <primitive object={d.afterBand} />
+      <primitive object={d.fill} />
       <primitive object={d.before} />
       <primitive object={d.after} />
     </>

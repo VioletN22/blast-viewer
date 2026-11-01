@@ -7,7 +7,7 @@ import type { Scenario } from '../sim/scenario'
 import { DEFAULT_PATTERN } from '../sim/types'
 import { useBlast } from '../state/store'
 import { delayColor, rampColor } from './colors'
-import { firstFireMs, lastFireMs } from './terrainGeometry'
+import { firstFireMs, lastFireMs } from '../sim/fire'
 
 /** Low-poly rock: an icosahedron with its vertices pushed in and out a little, flat shaded. */
 function rockGeometry() {

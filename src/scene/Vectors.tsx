@@ -2,12 +2,11 @@ import { useFrame } from '@react-three/fiber'
 import { useEffect, useMemo } from 'react'
 import { BufferAttribute, BufferGeometry, Color, LineBasicMaterial, LineSegments } from 'three'
 import { positionAt } from '../sim/blast'
+import { firstFireMs } from '../sim/fire'
 import type { Scenario } from '../sim/scenario'
 import { useBlast } from '../state/store'
 import { rampColor } from './colors'
-import { firstFireMs } from './terrainGeometry'
-
-const MAX_SEGMENTS = 1500
+import { vectorSampling } from './vectorSampling'
 
 /**
  * Movement vectors: one LineSegments, every Nth fragment (at most ~1,500),
@@ -16,9 +15,7 @@ const MAX_SEGMENTS = 1500
  */
 export function Vectors({ scenario }: { scenario: Scenario }) {
   const { fragments: f, holes } = scenario
-  const show = useBlast((s) => s.showVectors)
-  const step = Math.max(1, Math.ceil(f.count / MAX_SEGMENTS))
-  const n = Math.ceil(f.count / step)
+  const { step, n } = vectorSampling(f.count)
   const obj = useMemo(() => {
     const g = new BufferGeometry()
     g.setAttribute('position', new BufferAttribute(new Float32Array(n * 6), 3))
@@ -30,7 +27,8 @@ export function Vectors({ scenario }: { scenario: Scenario }) {
     l.visible = false
     return l
   }, [n])
-  const tmp = useMemo(() => ({ c: new Color(), p: new Float32Array(3), last: -1, firstFire: firstFireMs(holes) }), [holes, obj])
+  const firstFire = useMemo(() => firstFireMs(holes), [holes])
+  const state = useMemo(() => ({ c: new Color(), p: new Float32Array(3), last: -1 }), [obj])
   useEffect(
     () => () => {
       obj.geometry.dispose()
@@ -40,20 +38,21 @@ export function Vectors({ scenario }: { scenario: Scenario }) {
   )
 
   useFrame(() => {
+    // The only visibility gate: unmounting is not used, so the buffers survive toggling.
     const { timeMs, showVectors } = useBlast.getState()
-    const visible = showVectors && timeMs > 0 && timeMs >= tmp.firstFire
+    const visible = showVectors && timeMs > 0 && timeMs >= firstFire
     obj.visible = visible
     if (!visible) {
-      tmp.last = -1
+      state.last = -1
       return
     }
-    if (tmp.last === timeMs) return
-    tmp.last = timeMs
+    if (state.last === timeMs) return
+    state.last = timeMs
     const pos = obj.geometry.getAttribute('position') as BufferAttribute
     const col = obj.geometry.getAttribute('color') as BufferAttribute
     const pa = pos.array as Float32Array
     const ca = col.array as Float32Array
-    const { c, p } = tmp
+    const { c, p } = state
     const inv = f.maxMagnitude > 0 ? 1 / f.maxMagnitude : 0
     for (let k = 0; k < n; k++) {
       const i = k * step
@@ -78,6 +77,6 @@ export function Vectors({ scenario }: { scenario: Scenario }) {
     col.needsUpdate = true
   })
 
-  if (f.count === 0 || !show) return null
+  if (f.count === 0) return null
   return <primitive object={obj} />
 }

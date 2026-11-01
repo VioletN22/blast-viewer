@@ -8,7 +8,8 @@ export interface PerfStats {
 const plural = (n: number, one: string, many: string) => `${n.toLocaleString('en-US')} ${n === 1 ? one : many}`
 
 function compact(n: number): string {
-  if (n >= 1_000_000) return `${(Math.round(n / 100_000) / 10).toString()}M`
+  // 999,500 and up would round to 1000k, so it takes the M form.
+  if (n >= 999_500) return `${(n / 1_000_000).toFixed(1)}M`
   if (n >= 10_000) return `${Math.round(n / 1000)}k`
   return n.toLocaleString('en-US')
 }

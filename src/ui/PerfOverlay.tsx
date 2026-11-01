@@ -10,10 +10,11 @@ export function PerfOverlay() {
   const triangles = usePerf((s) => s.triangles)
   const instances = usePerf((s) => s.instances)
   if (!show) return null
+  // Decorative stats that change four times a second: a polite live region would chatter, so it is a silent status.
   return (
-    <div className="perf-overlay" aria-label="Performance">
-      {formatPerf({ fps, calls, triangles, instances }).map((l) => (
-        <div key={l.split(' ').slice(1).join(' ')}>{l}</div>
+    <div className="perf-overlay" role="status" aria-live="off" aria-label="Performance">
+      {formatPerf({ fps, calls, triangles, instances }).map((l, i) => (
+        <div key={i}>{l}</div>
       ))}
     </div>
   )

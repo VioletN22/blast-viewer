@@ -17,6 +17,11 @@ export interface Fragments {
 const FLIGHT_MIN_MS = 600
 const FLIGHT_MAX_MS = 1600
 
+/** Flight time of a fragment that moves magnitude metres when the largest move is maxMagnitude. */
+export function flightFor(magnitude: number, maxMagnitude: number): number {
+  return FLIGHT_MIN_MS + (maxMagnitude > 0 ? ((FLIGHT_MAX_MS - FLIGHT_MIN_MS) * magnitude) / maxMagnitude : 0)
+}
+
 /** Samples fragments through the blasted footprint and resolves where each lands. Zero holes gives empty fragments. */
 export function simulateBlast(
   t: Terrain,
@@ -65,9 +70,8 @@ export function simulateBlast(
     magnitude[i] = m
     if (m > maxMagnitude) maxMagnitude = m
   }
-  const span = FLIGHT_MAX_MS - FLIGHT_MIN_MS
   for (let i = 0; i < count; i++) {
-    flightMs[i] = FLIGHT_MIN_MS + (maxMagnitude > 0 ? (span * magnitude[i]) / maxMagnitude : 0)
+    flightMs[i] = flightFor(magnitude[i], maxMagnitude)
   }
   return { count, start, end, fireMs, flightMs, magnitude, maxMagnitude }
 }

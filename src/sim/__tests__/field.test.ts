@@ -89,4 +89,25 @@ describe('field', () => {
     expect(max).toBeGreaterThanOrEqual(2)
     expect(a[1]).toBeCloseTo(t.options.benchHeight / 2)
   })
+  it('digLine is a closed outline of about 96 points and the zone is thrown forward', () => {
+    const a = digLine(t, holes, false)
+    const b = digLine(t, holes, true)
+    const n = a.length / 3
+    expect(n).toBeGreaterThanOrEqual(90)
+    for (const l of [a, b]) {
+      expect([l[0], l[1], l[2]]).toEqual([l[(n - 1) * 3], l[(n - 1) * 3 + 1], l[(n - 1) * 3 + 2]])
+    }
+    let za = -Infinity
+    let zb = -Infinity
+    let backMove = Infinity
+    let zaMin = Infinity
+    for (let i = 0; i < n; i++) {
+      za = Math.max(za, a[i * 3 + 2])
+      zb = Math.max(zb, b[i * 3 + 2])
+      zaMin = Math.min(zaMin, a[i * 3 + 2])
+    }
+    for (let i = 0; i < n; i++) if (a[i * 3 + 2] < zaMin + 3) backMove = Math.min(backMove, Math.abs(b[i * 3 + 2] - a[i * 3 + 2]))
+    expect(zb - za).toBeGreaterThanOrEqual(10)
+    expect(backMove).toBeLessThan(4)
+  })
 })
