@@ -1,5 +1,5 @@
 /** Where the header's portfolio link points. Switch to the /3d page once it exists. */
-export const PORTFOLIO_URL = 'https://www.violetnwe.com'
+export const PORTFOLIO_URL = 'https://www.violetnwe.com/3d'
 const PORTFOLIO_LABEL = PORTFOLIO_URL.replace(/^https:\/\/(www\.)?/, '')
 const REPO = 'https://github.com/VioletN22/blast-viewer'
 
