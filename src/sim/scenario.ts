@@ -1,18 +1,27 @@
 import { simulateBlast, type Fragments } from './blast'
 import { lastFireMs } from './fire'
 import { generatePattern } from './pattern'
-import { generateTerrain } from './terrain'
+import type { Dem } from './dem'
+import { autoBench, findBench, siteFromBench, type BenchFit, type Site } from './site'
+import { generateTerrain, terrainFromDem } from './terrain'
 import { validateScenarioParams } from './validate'
 import { DEFAULT_PATTERN, DEFAULT_TERRAIN, type DrillHole, type PatternOptions, type Terrain, type TerrainOptions } from './types'
 
 /** Stress scale: 1 is the default scenario, 4 the heaviest. */
 export type Scale = 1 | 2 | 3 | 4
 
+/** 'bench' is the generated bench; 'pit' is the real surface, which needs the DEM. */
+export type Ground = 'bench' | 'pit'
+
 export interface ScenarioParams {
   seed: number
   scale: Scale
   terrain?: Partial<TerrainOptions>
   pattern?: Partial<PatternOptions>
+  /** Defaults to 'bench'. */
+  ground?: Ground
+  /** On the pit: the point the bench is laid from. Without it a bench is picked automatically. */
+  site?: { x: number; z: number }
 }
 
 export interface Scenario {
@@ -23,6 +32,27 @@ export interface Scenario {
   fragments: Fragments
   durationMs: number
   params: ScenarioParams
+  /** On the pit: the frame the model runs in, and the DEM it sits on. Null on the generated bench. */
+  site: Site | null
+  dem: Dem | null
+}
+
+/** Why a pit scenario could not be built at the asked-for point. */
+export class NoBenchError extends Error {}
+
+const autoCache = new WeakMap<Dem, BenchFit | null>()
+function benchFor(dem: Dem, pick: { x: number; z: number } | undefined): BenchFit {
+  if (!pick) {
+    if (!autoCache.has(dem)) autoCache.set(dem, autoBench(dem))
+    const b = autoCache.get(dem)
+    if (!b) throw new NoBenchError('No bench found on this surface.')
+    return b
+  }
+  if (!dem.inside(pick.x, pick.z, 100)) throw new NoBenchError('Too close to the edge of the terrain.')
+  const b = findBench(dem.heightAt, pick.x, pick.z)
+  if (!b) throw new NoBenchError('No bench face near that point. Try closer to a wall.')
+  if (!dem.inside(b.x, b.z, 100)) throw new NoBenchError('Too close to the edge of the terrain.')
+  return b
 }
 
 const COLS_BY_SCALE = [20, 30, 40, 50] as const
@@ -36,7 +66,7 @@ const TERRAIN_MARGIN_M = 40
  * initiation hole defaults to the middle column, and the terrain is widened
  * when the pattern would not fit with a margin.
  */
-export function buildScenario(p: ScenarioParams): Scenario {
+export function buildScenario(p: ScenarioParams, dem: Dem | null = null): Scenario {
   // Runtime guard for untyped callers: throws a readable "Scenario params:" error on a bad shape.
   validateScenarioParams(p)
   const s = p.scale - 1
@@ -52,16 +82,23 @@ export function buildScenario(p: ScenarioParams): Scenario {
   const { spacing } = pattern
   const span = (cols - 1) * spacing + spacing / 2
   const baseWidth = p.terrain?.width ?? DEFAULT_TERRAIN.width
-  const terrain = generateTerrain({
+  const terrainOpts = {
     ...p.terrain,
     // The terrain noise follows the scenario seed unless terrain.seed is given.
     seed: p.terrain?.seed ?? p.seed,
     // Widen the terrain to the pattern span + 40 m so the muck pile stays on the ground (scale 4: 298 m).
     width: Math.max(baseWidth, Math.ceil(span + TERRAIN_MARGIN_M)),
-  })
+  }
+  let site: Site | null = null
+  let terrain
+  if (p.ground === 'pit') {
+    if (!dem) throw new Error('Scenario params: the pit needs its terrain loaded first')
+    site = siteFromBench(benchFor(dem, p.site))
+    terrain = terrainFromDem(dem, site, terrainOpts)
+  } else terrain = generateTerrain(terrainOpts)
   const holes = generatePattern(terrain, pattern)
   const fragments = simulateBlast(terrain, holes, { fragmentsPerHole: FRAGMENTS_BY_SCALE[s], seed: p.seed })
   let maxFlight = 0
   for (let i = 0; i < fragments.count; i++) if (fragments.flightMs[i] > maxFlight) maxFlight = fragments.flightMs[i]
-  return { terrain, holes, fragments, pattern, durationMs: lastFireMs(holes) + maxFlight + 500, params: p }
+  return { terrain, holes, fragments, pattern, durationMs: lastFireMs(holes) + maxFlight + 500, params: p, site, dem: site ? dem : null }
 }

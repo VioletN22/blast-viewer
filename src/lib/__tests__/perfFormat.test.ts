@@ -30,4 +30,8 @@ describe('formatPerf edge', () => {
   it('999,600 triangles is 1.0M, not 1000k', () => {
     expect(formatPerf({ fps: 60, calls: 2, triangles: 999_600, instances: 2 })[2]).toBe('1.0M triangles')
   })
+  it('adds a points line only when points are drawn', () => {
+    expect(formatPerf({ fps: 60, calls: 2, triangles: 0, instances: 0, points: 0 })).toHaveLength(4)
+    expect(formatPerf({ fps: 60, calls: 2, triangles: 0, instances: 0, points: 1_500_000 })[4]).toBe('1.5M points')
+  })
 })

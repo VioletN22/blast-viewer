@@ -74,14 +74,23 @@ function checkOptions(name: string, v: unknown, rules: Readonly<Record<string, R
 export function validateScenarioParams(v: unknown): ScenarioParams {
   if (!isObject(v)) return fail('expected a JSON object')
   for (const k of Object.keys(v)) {
-    if (k !== 'seed' && k !== 'scale' && k !== 'terrain' && k !== 'pattern') fail(`"${k}" is not a known field`)
+    if (!['seed', 'scale', 'terrain', 'pattern', 'ground', 'site'].includes(k)) fail(`"${k}" is not a known field`)
   }
   if (typeof v.seed !== 'number' || !Number.isInteger(v.seed)) fail('"seed" must be an integer')
   if (v.scale !== 1 && v.scale !== 2 && v.scale !== 3 && v.scale !== 4) fail('"scale" must be 1, 2, 3 or 4')
   const terrain = checkOptions('terrain', v.terrain, TERRAIN_RULES)
   const pattern = checkOptions('pattern', v.pattern, PATTERN_RULES)
+  if (v.ground !== undefined && v.ground !== 'bench' && v.ground !== 'pit') fail('"ground" must be "bench" or "pit"')
+  if (v.site !== undefined) {
+    if (!isObject(v.site) || Object.keys(v.site).some((k) => k !== 'x' && k !== 'z')) fail('"site" must be an object with x and z')
+    const site = v.site as Record<string, unknown>
+    checkValue('site.x', 'finite', site.x)
+    checkValue('site.z', 'finite', site.z)
+  }
   const out: ScenarioParams = { seed: v.seed as number, scale: v.scale as ScenarioParams['scale'] }
   if (terrain) out.terrain = terrain
   if (pattern) out.pattern = pattern
+  if (v.ground !== undefined) out.ground = v.ground as ScenarioParams['ground']
+  if (v.site !== undefined) out.site = v.site as { x: number; z: number }
   return out
 }

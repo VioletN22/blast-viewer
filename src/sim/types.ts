@@ -25,6 +25,8 @@ export interface Terrain {
   /** Row-major: index = row * cols + col, col along x, row along z. */
   heights: Float32Array
   heightAt(x: number, z: number): number
+  /** 'synthetic' for the generated bench, 'dem' for a real surface resampled at a site. */
+  source: 'synthetic' | 'dem'
 }
 
 export interface PatternOptions {
