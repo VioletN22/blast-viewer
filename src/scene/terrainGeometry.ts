@@ -7,6 +7,21 @@ const FACE = new Color('#4a4642')
 const FLOOR = new Color('#5c5853')
 const BLASTED = new Color('#3d3a37')
 
+const LOW = new Color('#55514c')
+const HIGH = new Color('#9a9186')
+
+/**
+ * Colour of real ground: lighter the higher it sits in the DEM's range, so the
+ * bowl reads as deep, and a little darker where it is steep. The light does the
+ * rest of the relief. ny is the up component of the normal; h01 is the height
+ * in the range, 0 at the lowest point.
+ */
+export function groundColor(ny: number, h01: number, out: Color): Color {
+  const steep = Math.min(1, Math.max(0, (0.97 - ny) / 0.25))
+  out.copy(LOW).lerp(HIGH, Math.min(1, Math.max(0, h01)))
+  return out.multiplyScalar(1 - 0.12 * steep)
+}
+
 /** Box blur of a row-major grid, radius r, clamped at the edges. */
 function blur(src: Float32Array, cols: number, rows: number, r: number): Float32Array {
   const tmp = new Float32Array(src.length)
@@ -38,6 +53,7 @@ function blur(src: Float32Array, cols: number, rows: number, r: number): Float32
  */
 export function buildTerrainGeometry(t: Terrain, holes: DrillHole[] | null, mode: 'surface' | 'ghost' = 'surface'): BufferGeometry {
   const ghost = mode === 'ghost' && holes !== null
+  const dem = t.source === 'dem'
   const { cols, rows } = t
   const { width, depth, resolution: res, benchHeight } = t.options
   const n = cols * rows
@@ -78,10 +94,18 @@ export function buildTerrainGeometry(t: Terrain, holes: DrillHole[] | null, mode
       nor[k * 3 + 1] = 1 / len
       nor[k * 3 + 2] = -dz / len
       // Colour: bench top and floor by height, darker on steep ground, darkest on the blasted floor.
+      // Real ground takes the same slope colours as the DEM around it (groundColor), so the seam does not show.
       const ny = 1 / len
-      const flat = Math.min(1, Math.max(0, (ny - 0.55) / 0.35))
-      c.copy(FLOOR).lerp(TOP, Math.min(1, Math.max(0, h[k] / benchHeight)))
-      c.lerp(FACE, 1 - flat)
+      if (dem) {
+        const [lo, hi] = t.range ?? [0, 1]
+        const surface = h[k] + (t.floorAt ? t.floorAt(pos[k * 3], pos[k * 3 + 2]) : 0)
+        groundColor(ny, (surface - lo) / Math.max(1, hi - lo), c)
+      }
+      else {
+        const flat = Math.min(1, Math.max(0, (ny - 0.55) / 0.35))
+        c.copy(FLOOR).lerp(TOP, Math.min(1, Math.max(0, h[k] / benchHeight)))
+        c.lerp(FACE, 1 - flat)
+      }
       if (blasted[k]) c.lerp(BLASTED, 0.7)
       col[k * 3] = c.r
       col[k * 3 + 1] = c.g

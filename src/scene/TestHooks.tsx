@@ -6,6 +6,7 @@ import { hasFired } from '../sim/fire'
 import type { Scenario } from '../sim/scenario'
 import type { DrillHole } from '../sim/types'
 import { useBlast } from '../state/store'
+import { scenarioMatrix, worldY } from './siteFrame'
 
 /** True in dev and in the e2e build (VITE_E2E=1); false, and tree-shaken, in the deployed build. */
 export const TEST_HOOKS = import.meta.env.DEV || import.meta.env.VITE_E2E === '1'
@@ -17,6 +18,8 @@ export interface BlastTestHooks {
   holeOnScreen(): { id: string; x: number; y: number } | null
   /** Horizontal span of the hole collars on screen as a fraction of the canvas width, or null if any is behind the camera. */
   blockSpan(): number | null
+  /** Client pixel position of a world point on the ground (the DEM on the pit, the bench otherwise), or null if it is behind the camera. */
+  groundScreen(x: number, z: number): { x: number; y: number } | null
   /** Turns the camera about the vertical axis through the orbit target by `rad` (positive is anticlockwise from above), as an orbit drag would. */
   orbitBy(rad: number): void
 }
@@ -27,14 +30,21 @@ export function TestHooks({ scenario }: { scenario: Scenario }) {
   const gl = useThree((s) => s.gl)
   const controls = useThree((s) => s.controls) as OrbitControlsImpl | null
   const invalidate = useThree((s) => s.invalidate)
+  const exaggeration = useBlast((s) => s.exaggeration)
   useEffect(() => {
     const v = new Vector3()
-    const project = (h: DrillHole) => {
+    const k = scenario.dem ? exaggeration : 1
+    const m = scenarioMatrix(scenario, k)
+    const toScreen = () => {
       camera.updateMatrixWorld()
-      v.set(h.x, h.collarY + 0.25, h.z).project(camera)
+      v.project(camera)
       if (v.z > 1) return null
       const r = gl.domElement.getBoundingClientRect()
       return { x: r.left + ((v.x + 1) / 2) * r.width, y: r.top + ((1 - v.y) / 2) * r.height }
+    }
+    const project = (h: DrillHole) => {
+      v.set(h.x, h.collarY + 0.25, h.z).applyMatrix4(m)
+      return toScreen()
     }
     const hooks: BlastTestHooks = {
       holeScreen(id) {
@@ -72,6 +82,10 @@ export function TestHooks({ scenario }: { scenario: Scenario }) {
         const w = gl.domElement.getBoundingClientRect().width
         return w > 0 && hi > lo ? (hi - lo) / w : null
       },
+      groundScreen(x, z) {
+        v.set(x, scenario.dem ? worldY(scenario.dem, k, scenario.dem.heightAt(x, z)) : scenario.terrain.heightAt(x, z), z)
+        return toScreen()
+      },
       orbitBy(rad) {
         if (!controls) return
         const t = controls.target
@@ -91,6 +105,6 @@ export function TestHooks({ scenario }: { scenario: Scenario }) {
     return () => {
       if (w.__blastTest === hooks) delete w.__blastTest
     }
-  }, [scenario, camera, gl, controls, invalidate])
+  }, [scenario, camera, gl, controls, invalidate, exaggeration])
   return null
 }

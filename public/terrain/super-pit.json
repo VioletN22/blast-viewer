@@ -1,0 +1,28 @@
+{
+  "name": "Super Pit (Fimiston Open Pit), Kalgoorlie, WA",
+  "source": "AWS Terrain Tiles, terrarium encoding, https://registry.opendata.aws/terrain-tiles",
+  "imagerySources": [
+    "srtm/S31E121.tif",
+    "gmted/50S120E_20101117_gmted_mea075.tif"
+  ],
+  "fetched": "2026-11-03",
+  "zoom": 14,
+  "cols": 416,
+  "rows": 480,
+  "cellM": 8.2093,
+  "bounds": {
+    "west": 121.48819,
+    "east": 121.523895,
+    "north": -30.755998,
+    "south": -30.791396
+  },
+  "centreMga51": {
+    "easting": 357034.3,
+    "northing": 6594523.7
+  },
+  "heightOffsetM": 141,
+  "heightStepM": 0.05,
+  "minM": 141.55,
+  "maxM": 453,
+  "despikedSamples": 16
+}

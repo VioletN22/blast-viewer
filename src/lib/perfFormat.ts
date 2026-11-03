@@ -3,6 +3,8 @@ export interface PerfStats {
   calls: number
   triangles: number
   instances: number
+  /** Points drawn (a loaded point cloud); the line is left out when 0. */
+  points?: number
 }
 
 const plural = (n: number, one: string, many: string) => `${n.toLocaleString('en-US')} ${n === 1 ? one : many}`
@@ -14,14 +16,17 @@ function compact(n: number): string {
   return n.toLocaleString('en-US')
 }
 
-/** Overlay lines: fps, draw calls, triangles (k/M past 10,000) and instances. */
+/** Overlay lines: fps, draw calls, triangles (k/M past 10,000), instances, and points when there are any. */
 export function formatPerf(p: PerfStats): string[] {
   const calls = Math.round(p.calls)
   const inst = Math.round(p.instances)
-  return [
+  const lines = [
     `${Math.round(p.fps)} fps`,
     plural(calls, 'draw call', 'draw calls'),
     `${compact(Math.round(p.triangles))} triangles`,
     plural(inst, 'instance', 'instances'),
   ]
+  const pts = Math.round(p.points ?? 0)
+  if (pts > 0) lines.push(`${compact(pts)} points`)
+  return lines
 }

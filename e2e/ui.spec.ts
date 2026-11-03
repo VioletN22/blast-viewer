@@ -9,7 +9,7 @@ type Hooks = {
 }
 
 async function ready(page: Page) {
-  await page.goto('./')
+  await page.goto('./?terrain=bench')
   await page.waitForFunction(() => {
     const w = window as unknown as Partial<Hooks>
     return !!w.__blast?.getState().scenario && !!w.__blastTest
@@ -114,13 +114,13 @@ test.describe('?t= links', () => {
   test.use({ reducedMotion: 'no-preference' })
 
   test('?t=<ms> and ?t=end open at that time and do not autoplay', async ({ page }) => {
-    await page.goto('./?t=500')
+    await page.goto('./?terrain=bench&t=500')
     await expect(readout(page)).toHaveText(/^t = 500 ms \//)
     await page.waitForTimeout(1500)
     await expect(readout(page)).toHaveText(/^t = 500 ms \//)
     expect(await page.evaluate(() => (window as unknown as Hooks).__blast.getState().playing)).toBe(false)
 
-    await page.goto('./?t=end')
+    await page.goto('./?terrain=bench&t=end')
     await expect(readout(page)).toHaveText(/^t = ([\d,]+) ms \/ \1 ms$/)
     await expect(readout(page)).not.toHaveText(/^t = 0 ms/)
   })
