@@ -3,6 +3,7 @@ import { Color } from 'three'
 import { lastFireMs } from '../sim/fire'
 import { useBlast } from '../state/store'
 import { delayColor } from '../scene/colors'
+import { Icon } from './Icons'
 import { fireTicks, formatReadout, PAGE_STEP_MS, SPEEDS, STEP_MS } from '../lib/timelineFormat'
 
 function togglePlay() {
@@ -43,16 +44,6 @@ function useTimelineKeys() {
   }, [])
 }
 
-const PlayIcon = () => (
-  <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-    <path d="M4 2.5v11l9-5.5z" fill="currentColor" />
-  </svg>
-)
-const PauseIcon = () => (
-  <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-    <path d="M4 2.5h3v11H4zM9 2.5h3v11H9z" fill="currentColor" />
-  </svg>
-)
 
 type Tick = { ms: number; f: number; color: string }
 
@@ -86,7 +77,7 @@ function TimeTrack({ dur, ticks }: { dur: number; ticks: Tick[] }) {
           {formatReadout(timeMs, dur)}
         </span>
         <span className="tl-hint" aria-hidden="true">
-          Space play · ← → 100 ms
+          space to play, arrows step 100 ms
         </span>
       </div>
       <div className="tl-scrub" style={{ '--p': frac } as CSSProperties}>
@@ -135,9 +126,9 @@ export function Timeline() {
   if (!scenario) return null
 
   return (
-    <div className="timeline panel" role="group" aria-label="Timeline">
+    <div className="timeline" role="group" aria-label="Timeline">
       <button type="button" className="tl-play" onClick={togglePlay} aria-label={playing ? 'Pause' : 'Play'} title={playing ? 'Pause (Space)' : 'Play (Space)'}>
-        {playing ? <PauseIcon /> : <PlayIcon />}
+        <Icon name={playing ? 'pause' : 'play'} />
       </button>
       <TimeTrack dur={dur} ticks={ticks} />
       <select className="tl-speed" aria-label="Playback speed" title="Playback speed" value={speed} onChange={(e) => useBlast.getState().setSpeed(Number(e.currentTarget.value))}>

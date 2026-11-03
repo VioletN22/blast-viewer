@@ -21,7 +21,7 @@ import { TEST_HOOKS, TestHooks } from './TestHooks'
 import { TerrainMesh } from './TerrainMesh'
 import { Vectors } from './Vectors'
 
-const BG = '#121417'
+const BG = '#16140f'
 
 /** Advances timeMs by delta * speed while playing and stops at the end. */
 function Player() {
@@ -263,7 +263,7 @@ function PitLights({ scenario, k }: { scenario: Scenario; k: number }) {
   }
   return (
     <>
-      <hemisphereLight args={['#dfe5ec', '#7a7066', 1.6]} />
+      <hemisphereLight args={['#d3dce8', '#7a7066', 1.6]} />
       <directionalLight
         ref={ref}
         position={[site.x - 300, y + 245, site.z - 300]}
@@ -298,7 +298,7 @@ function Lights({ scenario }: { scenario: Scenario }) {
   }
   return (
     <>
-      <hemisphereLight args={['#cfd8e3', '#3a342e', 0.9]} />
+      <hemisphereLight args={['#c6d1df', '#3a342e', 0.9]} />
       <directionalLight
         ref={ref}
         position={[ext.cx - 120, 160, 90]}

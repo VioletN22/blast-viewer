@@ -12,6 +12,7 @@ import { Controls } from './ui/Controls'
 import { Fallback } from './ui/Fallback'
 import { Header } from './ui/Header'
 import { HoleCard } from './ui/HoleCard'
+import { IconSprite } from './ui/Icons'
 import { Legend } from './ui/Legend'
 import { PerfOverlay } from './ui/PerfOverlay'
 import { PointsLegend } from './ui/PointsLegend'
@@ -73,6 +74,7 @@ export default function App() {
 
   return (
     <main data-testid="app-root" className="app">
+      <IconSprite />
       <Header />
       <section
         className="viewport"
@@ -87,20 +89,28 @@ export default function App() {
           void useBlast.getState().openPoints(f)
         }}
       >
-        {!webgl && <Fallback reason="no-webgl" />}
+        {!webgl && (
+          <div className="stage">
+            <Fallback reason="no-webgl" />
+          </div>
+        )}
         {webgl && scenario && cloud && (
           <>
             <Controls />
-            <StageBoundary resetKey={cloud} fallback={<Fallback reason="stopped" />}>
-              <CloudStage cloud={cloud} />
-              <PerfOverlay />
-              <div className="dock">
-                <ScaleBar />
-                <div className="dock-row">
-                  <PointsLegend />
+            <div className="stage">
+              <StageBoundary resetKey={cloud} fallback={<Fallback reason="stopped" />}>
+                <CloudStage cloud={cloud} />
+                <PerfOverlay />
+                <div className="dock">
+                  <div className="dock-row">
+                    <div className="legend-block">
+                      <PointsLegend />
+                      <ScaleBar />
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </StageBoundary>
+              </StageBoundary>
+            </div>
           </>
         )}
         {webgl && scenario && !cloud && (
@@ -108,21 +118,25 @@ export default function App() {
             {/* Outside the boundary, so it stays over the fallback: another stress scale is a new scenario, which retries the live view. */}
             <Controls />
             {/* The overlay and the dock sit inside the boundary, so they go in the same render as the canvas, with no frame of dock over the fallback. */}
-            <StageBoundary resetKey={scenario} fallback={<Fallback reason="stopped" />}>
-              <Stage scenario={scenario} />
-              <PerfOverlay />
-              <div className="dock">
-                <ScaleBar />
-                <div className="dock-row">
-                  <Legend />
-                  <HoleCard />
+            <div className="stage">
+              <StageBoundary resetKey={scenario} fallback={<Fallback reason="stopped" />}>
+                <Stage scenario={scenario} />
+                <PerfOverlay />
+                <div className="dock">
+                  <div className="dock-row">
+                    <div className="legend-block">
+                      <Legend />
+                      <ScaleBar />
+                    </div>
+                    <HoleCard />
+                  </div>
+                  <Timeline />
                 </div>
-                <Timeline />
-              </div>
-            </StageBoundary>
+              </StageBoundary>
+            </div>
           </>
         )}
-        {webgl && !scenario && !error && <p className="status">Building scenario…</p>}
+        {webgl && !scenario && !error && <p className="status">Building the blast…</p>}
         {webgl && error && (
           <div className="status status-error" role="alert">
             <strong>Could not load the scenario.</strong>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from 'react'
 import { hasFired } from '../sim/fire'
 import { useBlast } from '../state/store'
+import { Icon } from './Icons'
 
 /** The card's element id, so the keyboard hole list can move focus to it. */
 export const HOLE_CARD_ID = 'hole-card'
@@ -27,14 +28,14 @@ export function HoleCard() {
   const close = () => useBlast.getState().selectHole(null)
   return (
     // A live region rather than a dialog: it does not trap focus, and screen readers announce it when it opens.
-    <section id={HOLE_CARD_ID} className="hole-card panel" role="region" aria-labelledby="hole-card-title" aria-live="polite" tabIndex={-1}>
+    <section id={HOLE_CARD_ID} className="hole-card" role="region" aria-labelledby="hole-card-title" aria-live="polite" tabIndex={-1}>
       <div className="hc-head">
-        <h2 id="hole-card-title">Hole {hole.id}</h2>
+        <h2 id="hole-card-title">
+          Hole <span className="mono">{hole.id}</span>
+        </h2>
         <span className={`hc-status ${fired ? 'is-fired' : 'is-waiting'}`}>{fired ? 'fired' : 'waiting'}</span>
         <button type="button" className="hc-close" onClick={close} aria-label="Close hole details" title="Close (Esc)">
-          <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true">
-            <path d="M3.5 3.5l9 9m0-9-9 9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-          </svg>
+          <Icon name="close" size={14} />
         </button>
       </div>
       <dl className="hc-grid">

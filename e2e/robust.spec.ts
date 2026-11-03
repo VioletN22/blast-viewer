@@ -75,17 +75,17 @@ test('phone layout', async ({ page }) => {
   await ready(page)
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375)
   await expect(page.getByRole('button', { name: 'Play' })).toBeVisible()
-  await page.getByRole('button', { name: 'Layers' }).click()
-  await expect(page.getByRole('radio', { name: 'Stress scale 1' })).toBeChecked()
+  await page.getByRole('button', { name: 'Controls' }).click()
+  await expect(page.getByRole('slider', { name: 'Scale' })).toHaveValue('1')
   expect(await page.evaluate(() => (window as unknown as Hooks).__blast.getState().scale)).toBe(1)
 })
 
 test('stress scale raises instances', async ({ page }) => {
   await ready(page)
-  // The styled track sits over the visually hidden input, as a label does; force clicks through it.
-  await page.getByRole('checkbox', { name: 'Show performance stats' }).check({ force: true })
+  // The drawn box sits under the transparent input; force skips the hit test on the styled label.
+  await page.getByRole('checkbox', { name: 'Stats' }).check({ force: true })
   const base = await overlayInstances(page)
-  await page.getByRole('radio', { name: 'Stress scale 4' }).check()
+  await page.getByRole('slider', { name: 'Scale' }).fill('4')
   // The scale 4 rebuild plus a sampled frame is slow under software GL on CI runners.
   await expect.poll(() => overlayInstances(page), { timeout: 20_000 }).toBeGreaterThan(base)
 })
@@ -113,7 +113,7 @@ test('context loss shows the fallback', async ({ page }) => {
   await expect(page.locator('video')).toBeVisible()
   // The dock goes with the canvas; the controls stay so another scale can retry.
   await expect(page.getByRole('slider', { name: 'Blast time' })).toHaveCount(0)
-  await expect(page.getByRole('radio', { name: 'Stress scale 2' })).toBeAttached()
+  await expect(page.getByRole('slider', { name: 'Scale' })).toBeAttached()
 })
 
 test('a context restored within the wait keeps the live view', async ({ page }) => {
@@ -176,7 +176,7 @@ test('escape closes the topmost layer first', async ({ page }) => {
   await page.evaluate((id) => (window as unknown as Hooks).__blast.getState().selectHole(id), hole!.id)
   const card = page.getByRole('region', { name: `Hole ${hole!.id}` })
   await expect(card).toBeVisible()
-  await page.getByRole('button', { name: 'Layers' }).click()
+  await page.getByRole('button', { name: 'Controls' }).click()
   const sheet = page.getByRole('group', { name: 'View options' })
   await expect(sheet).toBeVisible()
   await page.keyboard.press('Escape')
@@ -205,7 +205,7 @@ test('scrubber keys step 100 ms and 500 ms', async ({ page }) => {
 test('landscape phone layers sheet scrolls inside the viewport', async ({ page }) => {
   await page.setViewportSize({ width: 740, height: 360 })
   await ready(page)
-  await page.getByRole('button', { name: 'Layers' }).click()
+  await page.getByRole('button', { name: 'Controls' }).click()
   const sheet = page.getByRole('group', { name: 'View options' })
   await expect(sheet).toBeVisible()
   const { bottom, overflowY, scrollHeight, clientHeight } = await sheet.evaluate((el) => ({
@@ -234,8 +234,8 @@ test('landscape phone at 844x390 gets the phone layout', async ({ page }) => {
   })
   type R = Awaited<ReturnType<typeof rect>>
   const overlaps = (a: R, b: R) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
-  // Closed, the controls are only the Layers toggle; it must not sit over the legend or the timeline.
-  await expect(page.getByRole('button', { name: 'Layers' })).toBeVisible()
+  // Closed, the controls are only the sheet's handle; it must not sit over the legend or the timeline.
+  await expect(page.getByRole('button', { name: 'Controls' })).toBeVisible()
   await expect(page.getByRole('group', { name: 'View options' })).toBeHidden()
   const controls = await rect('.controls-toggle')
   expect(overlaps(controls, await rect('.legend'))).toBe(false)

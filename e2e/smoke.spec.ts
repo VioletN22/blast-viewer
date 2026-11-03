@@ -24,3 +24,14 @@ test('the static page has loading text, a noscript line and share metadata', asy
   await expect(page.getByTestId('app-root')).toBeVisible()
   await expect(page.getByText('Loading the 3D viewer…')).toHaveCount(0)
 })
+
+test('the two self-hosted faces are preloaded and used', async ({ page, request }) => {
+  const html = await (await request.get('./')).text()
+  expect(html).toContain('<link rel="preload" href="/blast-viewer/fonts/instrument-sans-var.woff2" as="font" type="font/woff2" crossorigin')
+  expect(html).toContain('<link rel="preload" href="/blast-viewer/fonts/jetbrains-mono-var.woff2" as="font" type="font/woff2" crossorigin')
+  await page.goto('./')
+  await expect(page.getByRole('heading', { name: 'Bench blast viewer' })).toBeVisible()
+  await page.evaluate(() => document.fonts.ready)
+  const loaded = await page.evaluate(() => [...document.fonts].filter((f) => f.status === 'loaded').map((f) => f.family.replace(/"/g, '')).sort())
+  expect(loaded).toEqual(['Instrument Sans', 'JetBrains Mono'])
+})

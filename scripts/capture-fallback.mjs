@@ -46,12 +46,13 @@ try {
   // live page's own and would be dead buttons in a video. Injected before load, so the camera
   // framing sees the full 1920x1080 canvas.
   await page.addInitScript(() => {
-    const css = '.app-header,.controls,.timeline,.perf-overlay,.hole-card{display:none!important}'
+    const css = '.app-header,.controls,.timeline,.perf-overlay,.hole-card{display:none!important}.viewport>.stage{right:0!important}'
     const add = () => document.head.appendChild(Object.assign(document.createElement('style'), { textContent: css }))
     if (document.head) add()
     else document.addEventListener('DOMContentLoaded', add)
   })
-  await page.goto(base)
+  // The bench: the default ground is the pit, where the blast is too small to read in a recording.
+  await page.goto(`${base}?terrain=bench`)
   await page.waitForFunction(() => window.__blast?.getState().scenario && window.__blastTest, null, { timeout: 30000 })
   const dur = await page.evaluate(() => {
     const s = window.__blast.getState()

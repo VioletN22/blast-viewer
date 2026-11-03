@@ -9,7 +9,7 @@ import { rampColor } from './colors'
 import { PerfProbe } from './PerfProbe'
 import { ScaleProbe } from './ScaleProbe'
 
-const BG = '#121417'
+const BG = '#16140f'
 const LUT_SIZE = 256
 
 /** Heights to colours on the shared ramp, through a 256-step lookup so a large cloud colours quickly. */
