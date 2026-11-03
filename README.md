@@ -17,7 +17,7 @@ An interactive 3D viewer for blast movement on an open-pit bench: drill holes fi
 - **The ground.** The Super Pit from real elevation data (the default), or the synthetic bench. The Terrain picker switches between them. See [Real terrain](#real-terrain).
 - **The firing sequence.** Each hole collar is coloured by its firing delay. Press play, or scrub the timeline, which has one tick per delay. Holes fire in order and the rock around them moves.
 - **Rock movement.** About 2,900 rock fragments at the default scale are coloured by how far they moved (a viridis-like ramp with a legend in metres) or by delay. Optional vectors draw the displacement for a sample of fragments.
-- **The ore zone.** A dig line at mid-bench: dashed white for the outline before the blast, solid amber for the outline after. The amber outline moves with the rock while the blast plays.
+- **The ore zone.** A dig line at mid-bench: dashed white for the outline before the blast, solid violet for the outline after. The violet outline moves with the rock while the blast plays.
 - **The pre-blast surface**, as an optional ghost over the muck pile.
 - **Hole details.** Click a collar, or pick a hole from the keyboard Holes list, to see its depth, charge, delay, and whether it has fired.
 - **A stress scale.** The Scale slider, 1 to 4, rebuilds the scenario with more holes and up to ten times the fragments, so you can watch the cost in the stats overlay. A drag builds only the value it is let go on.
@@ -38,7 +38,7 @@ What does not: the 3D camera. Orbit, zoom and pan are pointer and touch only, an
 
 ## Real terrain
 
-![The Super Pit on load, with the blast block outlined in amber](docs/pit.jpg)
+![The Super Pit on load, with the blast block outlined](docs/pit.jpg)
 
 ![Mid-blast on a bench inside the pit](docs/pit-blast.jpg)
 
@@ -50,7 +50,7 @@ The grid comes from AWS Terrain Tiles. Over Kalgoorlie the tiles are built from 
 
 The blast model is the one the synthetic bench uses. It works in its own frame, with the crest along one axis and the free face toward the other, so on the pit it needs only a crest point, a face direction and a floor plane. On load the viewer picks a bench inside the pit. It tries points across the pit, takes the steepest way down from each, walks to where the ground turns into a face, and scores the ground behind that crest with a plane fit over the pattern's footprint. The flattest, smoothest one wins. A click on the pit runs the same search from the point clicked and moves the blast there. If there is no face at that point, it looks further out, in rings up to 400 m, and puts the blast on the nearest face it finds. When that is more than 40 m from the click, the note under the picker says how far it moved. The face direction is downhill, so rock is thrown down the slope. The bench height is the drop from crest to toe, capped at 18 m, and the face angle is the mean slope of that drop. Everything else in the model is unchanged and still synthetic. The model needed no new parameter for the face direction, since the frame is turned instead. The bench floor is not level: it is a plane parallel to the fitted bench top, one bench height below it, so the blasted block sits on the wall with the slope rather than as a flat cut into it.
 
-**Whole pit** and **Blast** under the Terrain picker frame the camera. The blast block has an amber outline in the whole-pit view so it can be found.
+**Whole pit** and **Blast** under the Terrain picker frame the camera. The blast block has a violet outline in the whole-pit view so it can be found.
 
 ### Data and attribution
 

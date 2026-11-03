@@ -1,6 +1,6 @@
 /*
- * A field instrument, not a dashboard: warm ink, off-white type, one amber
- * for what is active, hairline rules for structure. Spacing and line-height
+ * A field instrument, not a dashboard: warm ink, off-white type, one violet
+ * accent for what is active, hairline rules for structure. Spacing and line-height
  * sit on a 4 px grid; corners are 3 px; the only shadow is under a sheet
  * that lies over the 3D view.
  */
@@ -36,9 +36,7 @@
   --text-2: #b9b1a2;
   --text-3: #8f877a;
 
-  /* The ore zone's amber: active state, the blast outline, the scrubber head. */
-  --amber: #ffb020;
-  --amber-ink: #1a1305;
+  /* The accent (active state, the scrubber head, the ore-zone and blast outlines) is set from src/theme.ts as --accent and --accent-ink. */
   --error: #eaa58f;
 
   --sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
@@ -77,7 +75,7 @@ input {
 }
 
 :where(a, button, select, input, [tabindex]):focus-visible {
-  outline: 2px solid var(--amber);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
   border-radius: var(--r);
 }
@@ -405,7 +403,7 @@ input {
   color: var(--error);
 }
 
-/* Options drawn as text: the active one amber with a 2 px rule under it. */
+/* Options drawn as text: the active one in the accent with a 2 px rule under it. */
 .text-choice {
   display: flex;
   gap: 16px;
@@ -447,8 +445,8 @@ input {
 }
 
 .text-choice input:checked + span {
-  color: var(--amber);
-  border-bottom-color: var(--amber);
+  color: var(--accent);
+  border-bottom-color: var(--accent);
 }
 
 .text-choice input:focus-visible,
@@ -458,12 +456,12 @@ input {
 }
 
 .text-choice input:focus-visible + span {
-  outline: 2px solid var(--amber);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
   border-radius: 1px;
 }
 
-/* Terrain: one choice per line, with a round mark that fills amber. */
+/* Terrain: one choice per line, with a round mark that fills with the accent. */
 .dot-choice {
   display: grid;
 }
@@ -493,7 +491,7 @@ input {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--amber);
+  background: var(--accent);
   transform: scale(0);
 }
 
@@ -512,7 +510,7 @@ input {
 }
 
 .dot-choice input:checked ~ .dot {
-  border-color: var(--amber);
+  border-color: var(--accent);
 }
 
 .dot-choice input:checked ~ .dot::after {
@@ -524,11 +522,11 @@ input {
 }
 
 .dot-choice input:focus-visible ~ .dot {
-  outline: 2px solid var(--amber);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
-/* Layers: square boxes, an amber tick when on, a one-word hint on hover or focus. */
+/* Layers: square boxes, a tick in the accent when on, a one-word hint on hover or focus. */
 .checks {
   display: grid;
 }
@@ -555,7 +553,7 @@ input {
 
 .box svg {
   fill: none;
-  stroke: var(--amber);
+  stroke: var(--accent);
   stroke-width: 1.75;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -563,7 +561,7 @@ input {
 }
 
 .check input:checked ~ .box {
-  border-color: var(--amber);
+  border-color: var(--accent);
 }
 
 .check input:checked ~ .box svg {
@@ -583,11 +581,11 @@ input {
 }
 
 .check input:checked:hover ~ .box {
-  border-color: var(--amber);
+  border-color: var(--accent);
 }
 
 .check input:focus-visible ~ .box {
-  outline: 2px solid var(--amber);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
@@ -638,7 +636,7 @@ input {
   margin-top: -5px;
   border: 2px solid var(--ink-1);
   border-radius: 2px;
-  background: var(--amber);
+  background: var(--accent);
 }
 
 .step-track input::-moz-range-thumb {
@@ -646,7 +644,7 @@ input {
   height: 8px;
   border: 2px solid var(--ink-1);
   border-radius: 2px;
-  background: var(--amber);
+  background: var(--accent);
 }
 
 .step-track input:focus-visible {
@@ -654,12 +652,12 @@ input {
 }
 
 .step-track input:focus-visible::-webkit-slider-thumb {
-  outline: 2px solid var(--amber);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
 .step-track input:focus-visible::-moz-range-thumb {
-  outline: 2px solid var(--amber);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
@@ -692,7 +690,7 @@ input {
 }
 
 .step-ticks .is-on {
-  color: var(--amber);
+  color: var(--accent);
 }
 
 .step-slider + .note {
@@ -729,11 +727,11 @@ input {
 }
 
 .text-btn:hover:not(:disabled) .icon {
-  color: var(--amber);
+  color: var(--accent);
 }
 
 .text-btn:active:not(:disabled) {
-  color: var(--amber);
+  color: var(--accent);
 }
 
 .text-btn:disabled {
@@ -762,7 +760,7 @@ input {
   margin: 0;
   padding: 4px 8px;
   border-radius: var(--r);
-  outline: 2px solid var(--amber);
+  outline: 2px solid var(--accent);
   font-size: 12px;
   line-height: 16px;
   color: var(--text);
@@ -884,8 +882,8 @@ input {
 }
 
 .sw-after {
-  border: 1.5px solid var(--amber);
-  background: color-mix(in srgb, var(--amber) 22%, transparent);
+  border: 1.5px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
 /* A map scale: the first half filled, the second open. */
@@ -935,7 +933,7 @@ input {
 }
 
 .hole-card:focus-visible {
-  outline: 2px solid var(--amber);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
@@ -955,7 +953,7 @@ input {
   font-weight: 600;
 }
 
-/* Fired or waiting: a small square, amber once the hole has fired. */
+/* Fired or waiting: a small square, in the accent once the hole has fired. */
 .hc-status {
   display: inline-flex;
   align-items: center;
@@ -972,7 +970,7 @@ input {
 }
 
 .hc-status.is-fired {
-  color: var(--amber);
+  color: var(--accent);
 }
 
 .hc-status.is-fired::before {
@@ -1049,12 +1047,12 @@ input {
 }
 
 .tl-play[aria-label='Pause'] {
-  color: var(--amber);
+  color: var(--accent);
 }
 
 .tl-play:active {
-  color: var(--amber);
-  border-color: var(--amber);
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 .tl-main {
@@ -1129,14 +1127,14 @@ input {
   background: linear-gradient(90deg, var(--text-2) calc(var(--p) * 100%), var(--rule-strong) calc(var(--p) * 100%));
 }
 
-/* The head: an amber bar, the one bright mark on the rail. */
+/* The head: a bar in the accent, the one bright mark on the rail. */
 .tl-range::-webkit-slider-thumb {
   -webkit-appearance: none;
   width: 4px;
   height: var(--thumb);
   margin-top: -5px;
   border-radius: 1px;
-  background: var(--amber);
+  background: var(--accent);
   box-shadow: 0 0 0 2px var(--ink-0);
 }
 
@@ -1145,7 +1143,7 @@ input {
   height: var(--thumb);
   border: 0;
   border-radius: 1px;
-  background: var(--amber);
+  background: var(--accent);
   box-shadow: 0 0 0 2px var(--ink-0);
 }
 
@@ -1154,11 +1152,11 @@ input {
 }
 
 .tl-range:focus-visible::-webkit-slider-thumb {
-  box-shadow: 0 0 0 2px var(--ink-0), 0 0 0 4px var(--amber);
+  box-shadow: 0 0 0 2px var(--ink-0), 0 0 0 4px var(--accent);
 }
 
 .tl-range:focus-visible::-moz-range-thumb {
-  box-shadow: 0 0 0 2px var(--ink-0), 0 0 0 4px var(--amber);
+  box-shadow: 0 0 0 2px var(--ink-0), 0 0 0 4px var(--accent);
 }
 
 .tl-speed {

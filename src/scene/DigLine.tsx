@@ -4,10 +4,11 @@ import { BufferAttribute, BufferGeometry, Color, DoubleSide, InterleavedBufferAt
 import { Line2, LineGeometry, LineMaterial } from 'three-stdlib'
 import type { Scenario } from '../sim/scenario'
 import { useBlast } from '../state/store'
+import { ACCENT } from '../theme'
 import { buildDigZone, digZoneAt } from './digZone'
 
 const BEFORE = '#ffffff'
-const AFTER = '#ffb020'
+const AFTER = ACCENT
 const LINE_PX = 3
 
 /** Writes a closed polyline (xyz triplets) into a Line2 geometry's segment buffer in place. */
@@ -25,7 +26,7 @@ function writeSegments(g: LineGeometry, pts: Float32Array) {
 
 /**
  * The ore zone at mid-bench as a closed outline. Before: static dashed white.
- * After: solid amber with a faint fill, each point easing from its unmoved to
+ * After: solid, in the accent, with a faint fill, each point easing from its unmoved to
  * its moved position on the fragments' fire and flight times, so at the end it
  * equals digLine(..., true). Drawn through the rock (depthTest off), with fat
  * lines (Line2) because WebGL ignores linewidth.

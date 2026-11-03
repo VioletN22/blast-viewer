@@ -51,7 +51,7 @@ export function Group({ id, title, children }: { id: string; title: string; chil
 export type Option<T> = { v: T; label: string; aria?: string; note?: string }
 
 /**
- * A row of choices drawn as text: the active one in amber with a rule under it.
+ * A row of choices drawn as text: the active one in the accent with a rule under it.
  * Native radios underneath, so arrows move the choice and screen readers read a radio group.
  * onRepeat runs when the checked option is clicked again.
  */
@@ -98,7 +98,7 @@ export function TextChoice<T extends string | number>({
   )
 }
 
-/** A short list of choices, one per line, with a round mark that fills amber. */
+/** A short list of choices, one per line, with a round mark that fills with the accent. */
 export function DotChoice<T extends string>({ label, name, options, value, onChange }: { label: string; name: string; options: Option<T>[]; value: T | null; onChange(v: T): void }) {
   const id = useId()
   return (
@@ -119,7 +119,7 @@ export function DotChoice<T extends string>({ label, name, options, value, onCha
   )
 }
 
-/** A checkbox drawn as a small square with an amber tick, and a one-word hint shown on hover or focus. */
+/** A checkbox drawn as a small square with a tick in the accent, and a one-word hint shown on hover or focus. */
 export function Check({ label, hint, checked, onChange }: { label: string; hint: string; checked: boolean; onChange(v: boolean): void }) {
   const hintId = useId()
   return (
