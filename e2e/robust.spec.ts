@@ -20,7 +20,7 @@ const NOTE = 'Your browser could not start WebGL, so this is a recording of the 
 const STOPPED = 'The 3D view stopped working, so this is a recording of the live viewer.'
 
 async function ready(page: Page) {
-  await page.goto('./')
+  await page.goto('./?terrain=bench')
   await page.waitForFunction(() => {
     const w = window as unknown as Partial<Hooks>
     return !!w.__blast?.getState().scenario && !!w.__blastTest
@@ -45,6 +45,7 @@ test('shows fallback without WebGL', async ({ page }) => {
   })
   const requests: string[] = []
   page.on('request', (r) => requests.push(r.url()))
+  // The default ground is the pit: without WebGL neither its terrain nor the scenario is fetched.
   await page.goto('./')
   const video = page.locator('video')
   await expect(video).toBeVisible()
@@ -57,7 +58,7 @@ test('shows fallback without WebGL', async ({ page }) => {
   // The heading and the synthetic-data note stay.
   await expect(page.getByRole('heading', { name: 'Bench blast viewer' })).toBeVisible()
   // Nothing reads the scenario without WebGL, so it is never fetched.
-  expect(requests.filter((u) => u.includes('/scenarios/'))).toEqual([])
+  expect(requests.filter((u) => u.includes('/scenarios/') || u.includes('/terrain/'))).toEqual([])
 })
 
 test('the WebGL path never requests the recording or its poster', async ({ page }) => {
@@ -145,7 +146,7 @@ test('renderer error shows the fallback and a new scenario retries', async ({ pa
       return orig.apply(this, args)
     } as typeof orig
   })
-  await page.goto('./')
+  await page.goto('./?terrain=bench')
   await page.waitForFunction(() => !!(window as unknown as Partial<Hooks>).__blast?.getState().scenario)
   await expect(page.getByText(STOPPED)).toBeVisible()
   await expect(page.locator('canvas')).toHaveCount(0)
@@ -251,7 +252,7 @@ test.describe('reduced motion changes', () => {
   const playing = (page: Page) => page.evaluate(() => (window as unknown as { __blast: { getState(): { playing: boolean } } }).__blast.getState().playing)
 
   test('turning reduced motion on cancels a pending autoplay', async ({ page }) => {
-    await page.goto('./')
+    await page.goto('./?terrain=bench')
     await page.waitForFunction(() => !!(window as unknown as Partial<Hooks>).__blast?.getState().scenario)
     await page.emulateMedia({ reducedMotion: 'reduce' })
     await page.waitForTimeout(1500)
@@ -259,7 +260,7 @@ test.describe('reduced motion changes', () => {
   })
 
   test('turning reduced motion on pauses the autoplay', async ({ page }) => {
-    await page.goto('./')
+    await page.goto('./?terrain=bench')
     await page.waitForFunction(() => (window as unknown as { __blast?: { getState(): { playing: boolean } } }).__blast?.getState().playing === true)
     await page.emulateMedia({ reducedMotion: 'reduce' })
     await expect.poll(() => playing(page)).toBe(false)
