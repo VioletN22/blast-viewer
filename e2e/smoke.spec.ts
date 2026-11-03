@@ -18,7 +18,7 @@ test('the static page has loading text, a noscript line and share metadata', asy
   expect(html).toContain('<div id="root"><p class="boot">Loading the 3D viewer…</p></div>')
   expect(html).toContain('<noscript>')
   expect(html).toMatch(/<meta name="description" content="[^"]+"/)
-  expect(html).toContain('<meta property="og:image" content="https://violetn22.github.io/blast-viewer/fallback/poster.jpg"')
+  expect(html).toContain('<meta property="og:image" content="https://violetn22.github.io/blast-viewer/og.jpg"')
   // React replaces the loading line.
   await page.goto('./')
   await expect(page.getByTestId('app-root')).toBeVisible()
