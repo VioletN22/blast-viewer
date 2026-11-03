@@ -2,8 +2,9 @@ import { useEffect, useMemo } from 'react'
 import { BufferAttribute, BufferGeometry, LineBasicMaterial } from 'three'
 import { holeIndex } from '../sim/field'
 import type { Scenario } from '../sim/scenario'
+import { ACCENT } from '../theme'
 
-/** An amber outline round the blast block, drawn over everything, so the blast can be found from the whole-pit view. */
+/** An outline in the accent round the blast block, drawn over everything, so the blast can be found from the whole-pit view. */
 export function SiteMarker({ scenario }: { scenario: Scenario }) {
   const geom = useMemo(() => {
     const idx = holeIndex(scenario.holes, scenario.terrain)
@@ -18,7 +19,7 @@ export function SiteMarker({ scenario }: { scenario: Scenario }) {
     }
     return new BufferGeometry().setAttribute('position', new BufferAttribute(pos, 3))
   }, [scenario])
-  const mat = useMemo(() => new LineBasicMaterial({ color: '#ffb020', depthTest: false, depthWrite: false, transparent: true, toneMapped: false }), [])
+  const mat = useMemo(() => new LineBasicMaterial({ color: ACCENT, depthTest: false, depthWrite: false, transparent: true, toneMapped: false }), [])
   useEffect(() => () => geom.dispose(), [geom])
   useEffect(() => () => mat.dispose(), [mat])
   return <lineLoop geometry={geom} material={mat} renderOrder={50} raycast={() => null} />

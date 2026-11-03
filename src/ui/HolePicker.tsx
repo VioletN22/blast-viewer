@@ -56,7 +56,7 @@ export function HolePicker({ onPick, fallbackFocus }: { onPick?(): void; fallbac
   }
 
   return (
-    <div className="ctl hole-picker">
+    <div className="hole-picker">
       <div
         ref={listRef}
         className="hole-list"
@@ -74,7 +74,7 @@ export function HolePicker({ onPick, fallbackFocus }: { onPick?(): void; fallbac
       </div>
       {/* What sighted keyboard users see while the hidden list has focus. */}
       <p className="hole-picker-hint" aria-hidden="true">
-        Hole {hole.id} · ↑ ↓ to move, Enter to open
+        Hole {hole.id}. Up and down move, Enter opens.
       </p>
     </div>
   )

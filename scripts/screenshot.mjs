@@ -9,7 +9,7 @@
 //   --dpr N            device pixel ratio, default 1
 //   --overlays         vectors, ore zone and stats on
 //   --hole             open the card of a hole that fires after the first time in --at
-//   --layers           open the Layers sheet (phones)
+//   --layers           open the controls sheet (phones)
 //   --name PREFIX      file name prefix, default "shot"
 //
 // Files: artifacts/<prefix>-<W>x<H>-<t>.png. Prints the scenario size and any console errors.
@@ -68,7 +68,7 @@ try {
         if (best) s.selectHole(best.id)
       }, after)
     }
-    if (values.layers) await page.getByRole('button', { name: 'Layers' }).click()
+    if (values.layers) await page.getByRole('button', { name: 'Controls' }).click()
     for (const at of times) {
       await page.evaluate((at) => {
         const s = window.__blast.getState()

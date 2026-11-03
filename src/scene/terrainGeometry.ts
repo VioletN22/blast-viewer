@@ -2,13 +2,13 @@ import { BufferAttribute, BufferGeometry, Color } from 'three'
 import { groundAfterBlast } from '../sim/field'
 import type { DrillHole, Terrain } from '../sim/types'
 
-const TOP = new Color('#77716a')
-const FACE = new Color('#4a4642')
-const FLOOR = new Color('#5c5853')
-const BLASTED = new Color('#3d3a37')
+const TOP = new Color('#7b7365')
+const FACE = new Color('#4b463f')
+const FLOOR = new Color('#5e574d')
+const BLASTED = new Color('#3e3a34')
 
-const LOW = new Color('#55514c')
-const HIGH = new Color('#9a9186')
+const LOW = new Color('#5a5248')
+const HIGH = new Color('#a39580')
 
 /**
  * Colour of real ground: lighter the higher it sits in the DEM's range, so the

@@ -18,8 +18,10 @@ type Hooks = {
   __blastTest: { groundScreen(x: number, z: number): { x: number; y: number } | null }
 }
 
-const PIT_NOTE = 'Ground: SRTM elevation of the Super Pit, height x1.5. The blast is a synthetic model, not a prediction.'
-const SYNTHETIC_NOTE = 'Synthetic data. Illustrative model, not a prediction.'
+const pitReadout = (k: string) => `ground: super pit, srtm 30 m; height: ${k}; blast: synthetic model, not a prediction`
+const SYNTHETIC_READOUT = 'ground: synthetic bench; blast: synthetic model, not a prediction'
+/** The header's status line, as one sentence (its title). */
+const readout = (page: Page) => page.getByTestId('readout')
 
 function watchErrors(page: Page) {
   const errors: string[] = []
@@ -48,16 +50,17 @@ test('the pit is the default and the terrain picker switches ground', async ({ p
   await ready(page)
   expect((await state(page)).site).not.toBeNull()
   expect((await state(page)).view).toBe('pit')
-  await expect(page.getByText(PIT_NOTE)).toBeVisible()
+  await expect(readout(page)).toHaveAttribute('title', pitReadout('x1.5'))
+  await expect(readout(page)).toBeVisible()
 
   await page.getByRole('radio', { name: 'Synthetic bench' }).check()
   await expect.poll(async () => (await state(page)).site).toBeNull()
-  await expect(page.getByText(SYNTHETIC_NOTE)).toBeVisible()
+  await expect(readout(page)).toHaveAttribute('title', SYNTHETIC_READOUT)
   await expect(page.getByRole('radio', { name: 'Frame the whole pit' })).toHaveCount(0)
 
-  await page.getByRole('radio', { name: 'Super Pit, real elevation' }).check()
+  await page.getByRole('radio', { name: 'Super Pit' }).check()
   await expect.poll(async () => (await state(page)).site).not.toBeNull()
-  await expect(page.getByText(PIT_NOTE)).toBeVisible()
+  await expect(readout(page)).toHaveAttribute('title', pitReadout('x1.5'))
   expect(errors).toEqual([])
 })
 
@@ -95,7 +98,7 @@ test('a click on flat ground away from the pit still places the blast, and says 
   const errors = watchErrors(page)
   await ready(page)
   await page.getByRole('radio', { name: 'Height x1', exact: true }).check()
-  await expect(page.getByText('Ground: SRTM elevation of the Super Pit, true height.', { exact: false })).toBeVisible()
+  await expect(readout(page)).toHaveAttribute('title', pitReadout('x1'))
   // Out on the plain, well clear of the pit walls.
   const p = await page.evaluate(() => (window as unknown as Hooks).__blastTest.groundScreen(-900, -300))
   expect(p).not.toBeNull()
@@ -103,7 +106,7 @@ test('a click on flat ground away from the pit still places the blast, and says 
   await expect(page.getByTestId('site-note')).toHaveText(/^Placed on the nearest face, \d+ m away\.$/)
   expect((await state(page)).site).not.toBeNull()
   await page.getByRole('radio', { name: 'Height x2', exact: true }).check()
-  await expect(page.getByText('Ground: SRTM elevation of the Super Pit, height x2.', { exact: false })).toBeVisible()
+  await expect(readout(page)).toHaveAttribute('title', pitReadout('x2'))
   expect(errors).toEqual([])
 })
 
@@ -113,8 +116,8 @@ test('the sample points load and show their count', async ({ page }) => {
   await page.getByRole('button', { name: 'Load sample' }).click()
   await expect(page.getByTestId('points-count')).toHaveText('5,000 points')
   expect((await state(page)).cloud).toBe(5000)
-  await expect(page.getByText('Sample points taken from the SRTM grid of the Super Pit.')).toBeVisible()
-  await expect(page.getByRole('group', { name: 'Legend' }).getByText('Height (m)')).toBeVisible()
+  await expect(readout(page)).toHaveAttribute('title', 'points: sample from the super pit srtm grid')
+  await expect(page.getByRole('group', { name: 'Legend' }).locator('.legend-title')).toHaveText('Height m')
   await expect(page.locator('canvas')).toHaveCount(1)
   await page.getByRole('button', { name: 'Back to the blast' }).click()
   await expect.poll(async () => (await state(page)).cloud).toBeNull()
@@ -153,7 +156,7 @@ test.describe('phone', () => {
     await ready(page)
     expect((await state(page)).site).not.toBeNull()
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375)
-    await page.getByRole('button', { name: 'Layers' }).click()
+    await page.getByRole('button', { name: 'Controls' }).click()
     await expect(page.getByRole('radio', { name: 'Frame the blast' })).toBeVisible()
     expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375)
     expect(errors).toEqual([])

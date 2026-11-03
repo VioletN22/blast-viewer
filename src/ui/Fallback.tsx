@@ -14,7 +14,7 @@ export const FALLBACK_NOTES: Record<FallbackReason, string> = {
  * Shown instead of the 3D view when WebGL is missing, the renderer fails or
  * its context is lost: a muted, looping recording of the live viewer. With
  * reduced motion it does not autoplay and shows its controls instead.
- * The note follows the reason; after a stop it adds that another stress scale
+ * The note follows the reason; after a stop it adds that another scale
  * tries the live view again.
  */
 export function Fallback({ reason }: { reason: FallbackReason }) {
@@ -35,7 +35,7 @@ export function Fallback({ reason }: { reason: FallbackReason }) {
       />
       <figcaption className="fallback-note">
         {FALLBACK_NOTES[reason]}
-        {reason === 'stopped' && <span> Choosing another stress scale tries the live view again.</span>}
+        {reason === 'stopped' && <span> Moving the scale tries the live view again.</span>}
       </figcaption>
     </figure>
   )

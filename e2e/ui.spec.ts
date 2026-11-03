@@ -75,7 +75,7 @@ test('phone layout fits 375 px with no horizontal scroll', async ({ page }) => {
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
   expect(overflow).toBeLessThanOrEqual(0)
   await expect(page.getByRole('slider', { name: 'Blast time' })).toBeVisible()
-  const toggle = page.getByRole('button', { name: 'Layers' })
+  const toggle = page.getByRole('button', { name: 'Controls' })
   await expect(toggle).toBeVisible()
   await toggle.click()
   await expect(page.getByRole('group', { name: 'View options' })).toBeVisible()
@@ -124,4 +124,52 @@ test.describe('?t= links', () => {
     await expect(readout(page)).toHaveText(/^t = ([\d,]+) ms \/ \1 ms$/)
     await expect(readout(page)).not.toHaveText(/^t = 0 ms/)
   })
+})
+
+test('a closed group stays closed after a reload', async ({ page }) => {
+  await ready(page)
+  const title = page.getByRole('button', { name: 'Layers' })
+  await expect(title).toHaveAttribute('aria-expanded', 'true')
+  await expect(page.getByRole('checkbox', { name: 'Vectors' })).toBeVisible()
+  await title.click()
+  await expect(title).toHaveAttribute('aria-expanded', 'false')
+  await expect(page.getByRole('checkbox', { name: 'Vectors' })).toBeHidden()
+  await ready(page)
+  await expect(page.getByRole('button', { name: 'Layers' })).toHaveAttribute('aria-expanded', 'false')
+  await expect(page.getByRole('checkbox', { name: 'Vectors' })).toBeHidden()
+})
+
+test('the scale slider steps with the keyboard', async ({ page }) => {
+  await ready(page)
+  const scale = page.getByRole('slider', { name: 'Scale' })
+  await expect(scale).toHaveValue('1')
+  await scale.focus()
+  await page.keyboard.press('ArrowRight')
+  await expect.poll(() => page.evaluate(() => (window as unknown as { __blast: { getState(): { scale: number } } }).__blast.getState().scale)).toBe(2)
+  await expect(page.getByTestId('blast-size')).toHaveText(/^[\d,]+ holes · [\d,]+ rocks$/)
+})
+
+test('the phone sheet opens half way, then full, and stays above the timeline', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 })
+  await ready(page)
+  const handle = page.getByRole('button', { name: 'Controls' })
+  const sheet = page.locator('.controls')
+  const timeline = page.getByRole('group', { name: 'Timeline' })
+  const height = async () => (await sheet.boundingBox())!.height
+  const closed = await height()
+  await handle.click()
+  await expect(handle).toHaveAttribute('aria-expanded', 'true')
+  await expect.poll(height).toBeGreaterThan(closed + 100)
+  const half = await height()
+  await handle.press('ArrowUp')
+  await expect.poll(height).toBeGreaterThan(half + 100)
+  // The sheet ends where the timeline starts, and the legend is above the sheet.
+  const s = (await sheet.boundingBox())!
+  const t = (await timeline.boundingBox())!
+  expect(Math.abs(s.y + s.height - t.y)).toBeLessThanOrEqual(1)
+  const legend = (await page.locator('.legend-block').boundingBox())!
+  expect(legend.y + legend.height).toBeLessThanOrEqual(s.y)
+  await handle.press('ArrowDown')
+  await handle.press('ArrowDown')
+  await expect(handle).toHaveAttribute('aria-expanded', 'false')
 })
