@@ -15,6 +15,7 @@ import { HoleCard } from './ui/HoleCard'
 import { Legend } from './ui/Legend'
 import { PerfOverlay } from './ui/PerfOverlay'
 import { PointsLegend } from './ui/PointsLegend'
+import { ScaleBar } from './ui/ScaleBar'
 import { Timeline } from './ui/Timeline'
 import { useAutoplay } from './ui/useAutoplay'
 
@@ -94,6 +95,7 @@ export default function App() {
               <CloudStage cloud={cloud} />
               <PerfOverlay />
               <div className="dock">
+                <ScaleBar />
                 <div className="dock-row">
                   <PointsLegend />
                 </div>
@@ -110,6 +112,7 @@ export default function App() {
               <Stage scenario={scenario} />
               <PerfOverlay />
               <div className="dock">
+                <ScaleBar />
                 <div className="dock-row">
                   <Legend />
                   <HoleCard />

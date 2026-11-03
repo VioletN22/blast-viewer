@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { makeDem } from '../dem'
 import { buildScenario, NoBenchError } from '../scenario'
-import { siteToWorld } from '../site'
+import { siteHeight, siteToWorld } from '../site'
 import { validateScenarioParams } from '../validate'
 import { steppedDem } from './demFixture'
 
@@ -18,7 +18,7 @@ describe('pit scenario', () => {
     for (const h of s.holes) {
       const [wx, wz] = siteToWorld(site, h.x, h.z)
       // Every collar is on the DEM surface, behind the crest (west of x = 0).
-      expect(site.floorY + h.collarY).toBeCloseTo(dem.heightAt(wx, wz), 1)
+      expect(siteHeight(site, h.x, h.collarY, h.z)).toBeCloseTo(dem.heightAt(wx, wz), 1)
       expect(wx).toBeLessThan(0)
     }
   })
@@ -36,10 +36,39 @@ describe('pit scenario', () => {
     expect(dx / f.count).toBeGreaterThan(2)
   })
 
-  it('pit: a point with no face nearby is refused with a reason', () => {
+  it('pit: a point with no face nearby goes to the nearest face and says how far', () => {
+    // The face is at x = 0, so a click 300 m west of it lands on its crest about 300 m away.
+    const s = buildScenario({ ...params, site: { x: -300, z: 50 } }, dem)
+    expect(s.site!.x).toBeGreaterThan(-10)
+    expect(s.site!.x).toBeLessThan(10)
+    expect(s.movedM).toBeGreaterThan(280)
+    expect(s.movedM).toBeLessThan(320)
+    // A click at the edge is pulled in first.
+    expect(buildScenario({ ...params, site: { x: 495, z: 0 } }, dem).site).not.toBeNull()
+  })
+
+  it('pit: only a surface with no face at all is refused', () => {
     const flat = makeDem(100, 100, 5, new Float32Array(10000).fill(10))
     expect(() => buildScenario({ ...params, site: { x: 0, z: 0 } }, flat)).toThrow(NoBenchError)
-    expect(() => buildScenario({ ...params, site: { x: 480, z: 0 } }, dem)).toThrow(/edge/)
+  })
+
+  it('pit: the floor tilts with the bench', () => {
+    const tilted = makeDem(201, 201, 5, Float32Array.from({ length: 201 * 201 }, (_, k) => {
+      const x = -500 + (k % 201) * 5
+      const z = -500 + Math.floor(k / 201) * 5
+      const base = x <= 0 ? 100 : x >= 21 ? 85 : 100 - (x / 21) * 15
+      return base + 0.05 * z
+    }))
+    const s = buildScenario({ ...params, site: { x: -30, z: 0 } }, tilted)
+    const site = s.site!
+    // The bench rises 5 cm per metre to the south (+z), which is along the model's -x here.
+    expect(Math.hypot(site.tiltX, site.tiltZ)).toBeCloseTo(0.05, 2)
+    // The floor runs parallel to the bench top: its depth below the top is the same under every hole.
+    const depths = s.holes.map((h) => {
+      const [, wz] = siteToWorld(site, h.x, h.z)
+      return 100 + 0.05 * wz - siteHeight(site, h.x, 0, h.z)
+    })
+    expect(Math.max(...depths) - Math.min(...depths)).toBeLessThan(0.1)
   })
 
   it('pit: needs the DEM', () => {

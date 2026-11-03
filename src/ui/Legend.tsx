@@ -2,7 +2,6 @@ import { useMemo } from 'react'
 import { lastFireMs } from '../sim/fire'
 import { useBlast } from '../state/store'
 import { RAMP_CSS } from '../scene/colors'
-import { ScaleBar } from './ScaleBar'
 
 /** What the rock colour means (movement in metres or firing delay in ms), plus the ore-zone key when it is on. */
 export function Legend() {
@@ -34,7 +33,6 @@ export function Legend() {
           </li>
         </ul>
       )}
-      <ScaleBar />
     </div>
   )
 }

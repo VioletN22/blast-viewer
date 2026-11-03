@@ -25,5 +25,5 @@ export function DemMesh({ scenario }: { scenario: Scenario }) {
   }, [geom, dem, scenario])
   useEffect(() => () => geom.dispose(), [geom])
   useEffect(() => () => mat.dispose(), [mat])
-  return <mesh geometry={geom} material={mat} receiveShadow onClick={onPitClick} />
+  return <mesh geometry={geom} material={mat} onClick={onPitClick} />
 }

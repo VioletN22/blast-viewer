@@ -3,7 +3,7 @@ import { expect, test, type Page } from '@playwright/test'
 // Reduced motion keeps the page paused at t = 0 (no autoplay).
 test.use({ reducedMotion: 'reduce', viewport: { width: 1280, height: 800 } })
 
-type Site = { x: number; z: number; angle: number; floorY: number }
+type Site = { x: number; z: number; angle: number; floorY: number; tiltX: number; tiltZ: number }
 type State = {
   scenario: { durationMs: number; site: Site | null; holes: { x: number; z: number; collarY: number }[]; dem: { heightAt(x: number, z: number): number } | null } | null
   view: string
@@ -18,7 +18,7 @@ type Hooks = {
   __blastTest: { groundScreen(x: number, z: number): { x: number; y: number } | null }
 }
 
-const PIT_NOTE = 'Ground: SRTM elevation of the Super Pit. The blast is a synthetic model, not a prediction.'
+const PIT_NOTE = 'Ground: SRTM elevation of the Super Pit, height x1.5. The blast is a synthetic model, not a prediction.'
 const SYNTHETIC_NOTE = 'Synthetic data. Illustrative model, not a prediction.'
 
 function watchErrors(page: Page) {
@@ -72,15 +72,15 @@ test('a click on the pit lays the pattern on a bench there, and the blast plays'
   await expect.poll(async () => (await state(page)).view).toBe('blast')
   const after = (await state(page)).site!
   expect(Math.hypot(after.x - before.x, after.z - before.z)).toBeGreaterThan(100)
-  await expect(page.getByTestId('site-note')).toHaveText('Click the pit to move the blast.')
+  await expect(page.getByTestId('site-note')).toHaveText(/^(Click the pit to move the blast\.|Placed on the nearest face, \d+ m away\.)$/)
 
-  // Every collar is on the real surface: model height plus the floor equals the DEM under it.
+  // Every collar is on the real surface: model height plus the tilted floor equals the DEM under it.
   const offsets = await page.evaluate(() => {
     const sc = (window as unknown as Hooks).__blast.getState().scenario!
     const s = sc.site!
     const c = Math.cos(s.angle)
     const n = Math.sin(s.angle)
-    return sc.holes.map((h) => Math.abs(s.floorY + h.collarY - sc.dem!.heightAt(s.x + h.x * c + h.z * n, s.z - h.x * n + h.z * c)))
+    return sc.holes.map((h) => Math.abs(s.floorY + s.tiltX * h.x + s.tiltZ * h.z + h.collarY - sc.dem!.heightAt(s.x + h.x * c + h.z * n, s.z - h.x * n + h.z * c)))
   })
   expect(Math.max(...offsets)).toBeLessThan(0.5)
 
@@ -88,6 +88,22 @@ test('a click on the pit lays the pattern on a bench there, and the blast plays'
   await page.getByRole('button', { name: 'Play' }).click()
   await expect.poll(async () => (await state(page)).timeMs).toBeGreaterThan(0)
   await expect.poll(async () => { const s = await state(page); return !s.playing && s.timeMs === s.durationMs }, { timeout: 15000 }).toBe(true)
+  expect(errors).toEqual([])
+})
+
+test('a click on flat ground away from the pit still places the blast, and says how far it moved', async ({ page }) => {
+  const errors = watchErrors(page)
+  await ready(page)
+  await page.getByRole('radio', { name: 'Height x1', exact: true }).check()
+  await expect(page.getByText('Ground: SRTM elevation of the Super Pit, true height.', { exact: false })).toBeVisible()
+  // Out on the plain, well clear of the pit walls.
+  const p = await page.evaluate(() => (window as unknown as Hooks).__blastTest.groundScreen(-900, -300))
+  expect(p).not.toBeNull()
+  await page.mouse.click(p!.x, p!.y)
+  await expect(page.getByTestId('site-note')).toHaveText(/^Placed on the nearest face, \d+ m away\.$/)
+  expect((await state(page)).site).not.toBeNull()
+  await page.getByRole('radio', { name: 'Height x2', exact: true }).check()
+  await expect(page.getByText('Ground: SRTM elevation of the Super Pit, height x2.', { exact: false })).toBeVisible()
   expect(errors).toEqual([])
 })
 

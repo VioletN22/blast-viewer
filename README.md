@@ -42,13 +42,13 @@ What does not: the 3D camera. Orbit, zoom and pan are pointer and touch only, an
 
 ![Mid-blast on a bench inside the pit](docs/pit-blast.jpg)
 
-The viewer opens on the Super Pit (Fimiston Open Pit) at Kalgoorlie, Western Australia. The ground is a real elevation model of the pit and the land around it. Heights are metres above sea level, with no vertical exaggeration. The whole-pit view looks north, and the 100 m grid and the contours are drawn in true metres. The scale bar under the legend gives the length of a round distance at the centre of the view.
+The viewer opens on the Super Pit (Fimiston Open Pit) at Kalgoorlie, Western Australia. The ground is a real elevation model of the pit and the land around it. Heights are metres above sea level. By default they are drawn 1.5 times taller than they are, so the benches and the bowl read from above. The **1x / 1.5x / 2x** control under the Terrain picker changes this, and the note in the header says which is on. The light is a low sun from the north-west with a soft sky fill. The shading uses normals from the grid at its real spacing, lightly smoothed so the 30 m source does not shade as streaks. Contours every 20 m and the 100 m grid are drawn in true metres, whatever the exaggeration. The whole-pit view looks south from the north rim, about 35 degrees down. The scale bar above the legend gives the length of a round distance at the centre of the view.
 
 The grid comes from AWS Terrain Tiles. Over Kalgoorlie the tiles are built from SRTM, which was flown in February 2000, so the pit is shown as it was then and is smaller than it is today. SRTM has a sample about every 30 m. That is enough for the pit, the ramps and the waste dumps, but not for single benches, so a wall reads as one slope.
 
 `scripts/fetch-terrain.mjs` fetched the tiles once at about 8 m per pixel, stitched them, filled SRTM voids (single samples far from their neighbours) with the local median, and cropped the grid to the pit. It wrote a 16-bit greyscale PNG and a JSON file with the bounds, the cell size and the date fetched to `public/terrain/`. The app reads those two files and never fetches tiles. The centre, size and zoom are at the top of the script, and `node scripts/fetch-terrain.mjs` fetches them again.
 
-The blast model is the one the synthetic bench uses. It works in its own frame, with the crest along one axis and the free face toward the other, so on the pit it needs only a crest point, a face direction and a floor level. On load the viewer picks a bench inside the pit. It tries points across the pit, takes the steepest way down from each, walks to where the ground turns into a face, and scores the ground behind that crest with a plane fit over the pattern's footprint. The flattest, smoothest one wins. A click on the pit runs the same search from the point clicked and moves the blast there, or says why it cannot. The face direction is downhill, so rock is thrown down the slope. The bench height is the drop from crest to toe, capped at 18 m, and the face angle is the mean slope of that drop. Everything else in the model is unchanged and still synthetic. The model needed no new parameter for the face direction, since the frame is turned instead.
+The blast model is the one the synthetic bench uses. It works in its own frame, with the crest along one axis and the free face toward the other, so on the pit it needs only a crest point, a face direction and a floor plane. On load the viewer picks a bench inside the pit. It tries points across the pit, takes the steepest way down from each, walks to where the ground turns into a face, and scores the ground behind that crest with a plane fit over the pattern's footprint. The flattest, smoothest one wins. A click on the pit runs the same search from the point clicked and moves the blast there. If there is no face at that point, it looks further out, in rings up to 400 m, and puts the blast on the nearest face it finds. When that is more than 40 m from the click, the note under the picker says how far it moved. The face direction is downhill, so rock is thrown down the slope. The bench height is the drop from crest to toe, capped at 18 m, and the face angle is the mean slope of that drop. Everything else in the model is unchanged and still synthetic. The model needed no new parameter for the face direction, since the frame is turned instead. The bench floor is not level: it is a plane parallel to the fitted bench top, one bench height below it, so the blasted block sits on the wall with the slope rather than as a flat cut into it.
 
 **Whole pit** and **Blast** under the Terrain picker frame the camera. The blast block has an amber outline in the whole-pit view so it can be found.
 
@@ -127,9 +127,9 @@ Imports point one way: `ui` and `scene` use `state`, `lib` and `sim` (and `ui` s
 | Gate | Count |
 | --- | --- |
 | `npx tsc --noEmit` | strict, 0 errors |
-| `npx vitest run` | 108 tests in 23 files (sim, DEM and PNG decoding, bench fitting, points parser, scene maths, store, formatting, phone rules, WebGL probe) |
+| `npx vitest run` | 110 tests in 23 files (sim, DEM and PNG decoding, bench fitting, points parser, scene maths, store, formatting, phone rules, WebGL probe) |
 | `npm run build` | type check, then the production build |
-| `npx playwright test` | 30 end-to-end tests in Chromium: smoke (2), UI (7), robustness (15), terrain (6) |
+| `npx playwright test` | 31 end-to-end tests in Chromium: smoke (2), UI (7), robustness (15), terrain (7) |
 
 The UI specs cover scrubbing, the play and step keys, clicking a hole, the keyboard Holes list (focus to the card and back), the 375 px phone layout, and `?t=` links. The robustness specs cover the fallback without WebGL (and that it never fetches the scenario), that the WebGL path never fetches the recording, a lost context that is restored and one that is not, a renderer error that a new scenario retries, the phone layout and portrait framing, the stress scale raising the instance count, no console errors on load, Escape order, the scrubber keys, the landscape Layers sheet scrolling, an 844x390 landscape phone, and turning reduced motion on mid-load. The terrain specs cover the picker, a click on the pit that moves the pattern onto a bench there and plays the blast, the sample points, a file with bad lines, a wrong file and a file over the limit, and the pit on a 375 px phone. The UI and robustness specs open the synthetic bench (`?terrain=bench`), since they measure its framing. The smoke specs check the page renders with no console errors and that the static HTML carries the loading line and share metadata.
 
@@ -137,18 +137,18 @@ CI (`.github/workflows/ci.yml`) runs every gate on pushes to `main` and on pull 
 
 ## Performance
 
-Measured with `scripts/measure-perf.mjs`: frames counted over 10 s of a blast playing at 0.25x, at 1440x900 and device pixel ratio 2, with the stats overlay read at the end. The min is the slowest 1 s window. The setup was **headless Chromium on an Apple-silicon MacBook with dev load present** (load average about 5). Treat the fps as a floor, not a benchmark.
+Measured with `scripts/measure-perf.mjs`: frames counted over 10 s of a blast playing at 0.25x, at 1440x900 and device pixel ratio 2, with the stats overlay read at the end. The min is the slowest 1 s window. The setup was **headless Chromium on an Apple-silicon MacBook with dev load present** (load average about 8). Treat the fps as a floor, not a benchmark.
 
 | Ground | Stress scale | Rocks | fps (mean) | fps (min) | Draw calls | Triangles | Instances |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Super Pit, whole-pit view (default) | 1 | 2,880 | 59.5 | 55 | 10 | 508k | 3,000 |
+| Super Pit, whole-pit view (default) | 1 | 2,880 | 59.4 | 54 | 10 | 508k | 3,000 |
 | Super Pit, blast view | 1 | 2,880 | 59.5 | 55 | 9 | 508k | 3,000 |
-| Synthetic bench | 1 | 2,880 | 59.7 | 57 | 8 | 110k | 3,000 |
-| Synthetic bench | 4 | 28,800 | 59.6 | 56 | 8 | 678k | 29,100 |
+| Synthetic bench | 1 | 2,880 | 59.8 | 58 | 8 | 110k | 3,000 |
+| Synthetic bench | 4 | 28,800 | 59.4 | 54 | 8 | 678k | 29,100 |
 
 Every row holds the display's 60 fps cap, so the numbers show headroom rather than a limit. Draw calls are the overlay's count with the default layers on (vectors and the ore zone). The rock and the collars are instanced, so the count does not grow with scale. The DEM adds about 400k triangles and one draw call.
 
-Everything in `dist` except the media and the terrain is about 338 kB gzipped, as Vite reports it (HTML, CSS and JS; three.js alone is 184.30 kB), plus the 63-byte scenario file. The points worker is a separate 2.35 kB file, loaded when points are opened. The budget for the initial JS is 1.2 MB. On the pit the viewer also fetches the terrain grid (156 kB) and its metadata. The sample points (140 kB) load only on **Load sample**, and the fallback recording (6.8 MB) and its poster (0.26 MB) only when the fallback is shown.
+Everything in `dist` except the media and the terrain is about 340 kB gzipped, as Vite reports it (HTML, CSS and JS; three.js alone is 184.30 kB), plus the 63-byte scenario file. The points worker is a separate 2.35 kB file, loaded when points are opened. The budget for the initial JS is 1.2 MB. On the pit the viewer also fetches the terrain grid (156 kB) and its metadata. The sample points (140 kB) load only on **Load sample**, and the fallback recording (6.8 MB) and its poster (0.26 MB) only when the fallback is shown.
 
 ## Run it
 

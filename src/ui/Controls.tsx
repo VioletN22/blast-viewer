@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useBlast, type ColorBy, type Ground, type Scale, type View } from '../state/store'
+import { useBlast, type ColorBy, type Exaggeration, type Ground, type Scale, type View } from '../state/store'
 import { MAX_POINTS } from '../lib/xyz'
 import { HolePicker } from './HolePicker'
 
@@ -12,6 +12,7 @@ const VIEWS: { v: View; label: string; aria: string }[] = [
   { v: 'pit', label: 'Whole pit', aria: 'Frame the whole pit' },
   { v: 'blast', label: 'Blast', aria: 'Frame the blast' },
 ]
+const EXAGGERATIONS: Exaggeration[] = [1, 1.5, 2]
 const POINT_FILES = '.xyz,.csv,.txt,.pts,text/csv,text/plain'
 const COLORS: { v: ColorBy; label: string }[] = [
   { v: 'movement', label: 'Movement' },
@@ -51,6 +52,8 @@ export function Controls() {
   const demStatus = useBlast((s) => s.demStatus)
   const view = useBlast((s) => s.view)
   const siteNote = useBlast((s) => s.siteNote)
+  const siteNoteError = useBlast((s) => s.siteNoteError)
+  const exaggeration = useBlast((s) => s.exaggeration)
   const cloud = useBlast((s) => s.cloud)
   const cloudBusy = useBlast((s) => s.cloudBusy)
   const cloudNote = useBlast((s) => s.cloudNote)
@@ -106,6 +109,16 @@ export function Controls() {
               ))}
             </div>
           )}
+          {onPit && (
+            <div className="seg seg-view seg-exag" role="radiogroup" aria-label="Height exaggeration">
+              {EXAGGERATIONS.map((k) => (
+                <label key={k}>
+                  <input type="radio" name="exaggeration" value={k} checked={exaggeration === k} onChange={() => st.setExaggeration(k)} aria-label={`Height x${k}`} />
+                  <span>{k}x</span>
+                </label>
+              ))}
+            </div>
+          )}
           {demStatus === 'loading' && <p className="ctl-note">Loading the pit…</p>}
           {demStatus === 'error' && (
             <p className="ctl-note ctl-error" role="alert">
@@ -113,7 +126,7 @@ export function Controls() {
             </p>
           )}
           {(onPit || siteNote) && (
-            <p className={`ctl-note${siteNote ? ' ctl-error' : ''}`} role="status" data-testid="site-note">
+            <p className={`ctl-note${siteNoteError ? ' ctl-error' : ''}`} role="status" data-testid="site-note">
               {siteNote ?? 'Click the pit to move the blast.'}
             </p>
           )}

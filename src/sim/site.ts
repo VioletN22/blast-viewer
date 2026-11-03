@@ -74,6 +74,9 @@ export interface BenchFit {
   /** Crest point in plan, metres. */
   x: number
   z: number
+  /** Centre of the plane fit behind the crest, in plan. */
+  fitX: number
+  fitZ: number
   /** Face direction in plan: unit vector pointing down the face. */
   dirX: number
   dirZ: number
@@ -126,9 +129,37 @@ export function findBench(height: HeightFn, px: number, pz: number): BenchFit | 
   }
   // Flat in every direction out to the probe: no face to lay a bench against.
   if (best <= 0.5) return null
+  let face = crestAndToe(height, px, pz, dirX, dirZ)
+  if (!face) return null
+  // The probe only tries 32 directions and a tilted bench pulls it sideways, so the
+  // direction is refined once: straight down the face, from a plane fit across it.
+  const mid = (face.crest + face.toe) / 2
+  const f = fitPlane(height, px + dirX * mid, pz + dirZ * mid, 8, 8, 2)
+  const g = Math.hypot(f.gx, f.gz)
+  if (g > FACE_END) {
+    const refined = crestAndToe(height, px, pz, -f.gx / g, -f.gz / g)
+    if (refined) {
+      dirX = -f.gx / g
+      dirZ = -f.gz / g
+      face = refined
+    }
+  }
+  const { crest, toe, topY, drop } = face
+  const x = px + dirX * crest
+  const z = pz + dirZ * crest
+  const faceAngleDeg = Math.min(75, Math.max(20, (Math.atan(drop / (toe - crest)) * 180) / Math.PI))
+  const benchHeight = Math.min(BENCH_MAX_M, Math.max(BENCH_MIN_M, drop))
+  // The crest runs along a = (dirZ, -dirX); the pattern area sits behind it, toward -dir.
+  const fitX = x - dirX * (PATTERN_HALF_DEPTH_M + 2)
+  const fitZ = z - dirZ * (PATTERN_HALF_DEPTH_M + 2)
+  const bench = fitPlane(height, fitX, fitZ, PATTERN_HALF_WIDTH_M, PATTERN_HALF_DEPTH_M, 5, dirZ, -dirX)
+  return { x, z, fitX, fitZ, dirX, dirZ, topY, benchHeight, faceAngleDeg, bench }
+}
+
+/** Crest and toe along one direction from (px, pz), as distances along it, or null when there is no face. */
+function crestAndToe(height: HeightFn, px: number, pz: number, dirX: number, dirZ: number): { crest: number; toe: number; topY: number; drop: number } | null {
   const at = (s: number) => height(px + dirX * s, pz + dirZ * s)
   const slope = (s: number) => (at(s) - at(s + 4)) / 4
-
   let crest: number | null = null
   if (slope(0) > FACE_START) {
     for (let s = 0; s >= -SEARCH_M; s--) {
@@ -155,14 +186,7 @@ export function findBench(height: HeightFn, px: number, pz: number): BenchFit | 
   }
   const topY = at(crest)
   const drop = topY - at(toe)
-  if (drop < MIN_DROP_M) return null
-  const x = px + dirX * crest
-  const z = pz + dirZ * crest
-  const faceAngleDeg = Math.min(75, Math.max(20, (Math.atan(drop / (toe - crest)) * 180) / Math.PI))
-  const benchHeight = Math.min(BENCH_MAX_M, Math.max(BENCH_MIN_M, drop))
-  // The crest runs along a = (dirZ, -dirX); the pattern area sits behind it, toward -dir.
-  const bench = fitPlane(height, x - dirX * (PATTERN_HALF_DEPTH_M + 2), z - dirZ * (PATTERN_HALF_DEPTH_M + 2), PATTERN_HALF_WIDTH_M, PATTERN_HALF_DEPTH_M, 5, dirZ, -dirX)
-  return { x, z, dirX, dirZ, topY, benchHeight, faceAngleDeg, bench }
+  return drop < MIN_DROP_M ? null : { crest, toe, topY, drop }
 }
 
 /** How well a bench suits the pattern: lower is better. Rough ground and a tilted top both count against it. */
@@ -177,8 +201,7 @@ export function benchScore(b: BenchFit): number {
  * whose crest is within 20 m of the rim is left out, so the pick is inside the pit.
  */
 export function autoBench(dem: Dem, step = 32, margin = 260): BenchFit | null {
-  const sorted = Float32Array.from(dem.heights).sort()
-  const rim = sorted[Math.floor(sorted.length / 2)]
+  const rim = rimHeight(dem)
   let best: BenchFit | null = null
   let bestScore = Infinity
   for (let z = -dem.halfZ + margin; z <= dem.halfZ - margin; z += step) {
@@ -196,28 +219,121 @@ export function autoBench(dem: Dem, step = 32, margin = 260): BenchFit | null {
   return best
 }
 
-/** A bench placed for the blast model: the frame transform from model coordinates to the surface. */
+/** The rim level of a pit: the median height of the DEM, which is mostly the ground around the pit. */
+export function rimHeight(dem: Dem): number {
+  const sorted = Float32Array.from(dem.heights).sort()
+  return sorted[Math.floor(sorted.length / 2)]
+}
+
+/** Plan box of the pit: every sample more than `below` metres under the rim. Null when there is none. */
+export function pitBounds(dem: Dem, below = 30): { minX: number; maxX: number; minZ: number; maxZ: number; rim: number } | null {
+  const rim = rimHeight(dem)
+  let minX = Infinity
+  let maxX = -Infinity
+  let minZ = Infinity
+  let maxZ = -Infinity
+  for (let j = 0; j < dem.rows; j++) {
+    for (let i = 0; i < dem.cols; i++) {
+      if (dem.heights[j * dem.cols + i] > rim - below) continue
+      const x = -dem.halfX + i * dem.cell
+      const z = -dem.halfZ + j * dem.cell
+      if (x < minX) minX = x
+      if (x > maxX) maxX = x
+      if (z < minZ) minZ = z
+      if (z > maxZ) maxZ = z
+    }
+  }
+  return Number.isFinite(minX) ? { minX, maxX, minZ, maxZ, rim } : null
+}
+
+/**
+ * A bench placed for the blast model: the frame transform from model
+ * coordinates to the surface. The model's floor (y = 0) is a plane parallel to
+ * the fitted bench top, one bench height below it, so it tilts with the ground.
+ */
 export interface Site {
   /** Crest origin in plan, metres. */
   x: number
   z: number
   /** Turn about y (radians) taking the model's +z (the free face) to the face direction. */
   angle: number
-  /** Height of the model's y = 0 (the floor below the bench), metres. */
+  /** Height of the floor plane at the crest origin, metres. */
   floorY: number
+  /** Slope of the floor plane along the model's x and z axes (dy/dx, dy/dz). */
+  tiltX: number
+  tiltZ: number
   benchHeight: number
   faceAngleDeg: number
 }
 
+/** The floor plane is kept within this slope, so a rough fit cannot tip the blast over. */
+const MAX_TILT = Math.tan((8 * Math.PI) / 180)
+
 export function siteFromBench(b: BenchFit): Site {
-  return {
-    x: b.x,
-    z: b.z,
-    angle: Math.atan2(b.dirX, b.dirZ),
-    floorY: b.topY - b.benchHeight,
-    benchHeight: b.benchHeight,
-    faceAngleDeg: b.faceAngleDeg,
+  const angle = Math.atan2(b.dirX, b.dirZ)
+  const c = Math.cos(angle)
+  const n = Math.sin(angle)
+  // The plane's world slope along the model axes: model x runs along (c, -n), model z along (n, c).
+  let tiltX = b.bench.gx * c - b.bench.gz * n
+  let tiltZ = b.bench.gx * n + b.bench.gz * c
+  const t = Math.hypot(tiltX, tiltZ)
+  if (t > MAX_TILT) {
+    tiltX *= MAX_TILT / t
+    tiltZ *= MAX_TILT / t
   }
+  // Height of the fitted plane at the crest, then one bench height down.
+  const [fx, fz] = worldToSite({ x: b.x, z: b.z, angle } as Site, b.fitX, b.fitZ)
+  const topAtCrest = b.bench.h - tiltX * fx - tiltZ * fz
+  return { x: b.x, z: b.z, angle, floorY: topAtCrest - b.benchHeight, tiltX, tiltZ, benchHeight: b.benchHeight, faceAngleDeg: b.faceAngleDeg }
+}
+
+/** Surface height of a model point: the floor plane under (x, z) plus the model's y. */
+export function siteHeight(s: Site, x: number, y: number, z: number): number {
+  return s.floorY + s.tiltX * x + s.tiltZ * z + y
+}
+
+/** Where the bench search ended up, and how far from the asked-for point. */
+export interface NearestBench {
+  bench: BenchFit
+  /** Distance in plan from the asked-for point to the crest, metres. */
+  distance: number
+  /** True when no bench was found from the point itself and the search had to widen. */
+  widened: boolean
+}
+
+const RING_STEP_M = 25
+export const NEAR_SEARCH_M = 400
+
+/**
+ * A bench from (px, pz), or failing that the bench nearest to it: findBench is
+ * tried on rings 25 m apart out to 400 m, then on a coarse grid over the whole
+ * surface. Within the first ring that has any, the crest nearest the point
+ * wins. ok() filters the results (for example to keep away from the edges).
+ */
+export function nearestBench(height: HeightFn, px: number, pz: number, ok: (b: BenchFit) => boolean, extent?: { halfX: number; halfZ: number }): NearestBench | null {
+  const dist = (b: BenchFit) => Math.hypot(b.x - px, b.z - pz)
+  const here = findBench(height, px, pz)
+  if (here && ok(here)) return { bench: here, distance: dist(here), widened: false }
+  const best = (pts: [number, number][]) => {
+    let b: BenchFit | null = null
+    for (const [x, z] of pts) {
+      const f = findBench(height, x, z)
+      if (f && ok(f) && (!b || dist(f) < dist(b))) b = f
+    }
+    return b
+  }
+  for (let r = RING_STEP_M; r <= NEAR_SEARCH_M; r += RING_STEP_M) {
+    const n = Math.ceil((2 * Math.PI * r) / RING_STEP_M)
+    const pts: [number, number][] = []
+    for (let k = 0; k < n; k++) pts.push([px + r * Math.sin((k / n) * 2 * Math.PI), pz + r * Math.cos((k / n) * 2 * Math.PI)])
+    const b = best(pts)
+    if (b) return { bench: b, distance: dist(b), widened: true }
+  }
+  if (!extent) return null
+  const pts: [number, number][] = []
+  for (let z = -extent.halfZ; z <= extent.halfZ; z += 100) for (let x = -extent.halfX; x <= extent.halfX; x += 100) pts.push([x, z])
+  const b = best(pts)
+  return b ? { bench: b, distance: dist(b), widened: true } : null
 }
 
 /** Model coordinates (x, z) to surface plan coordinates. */

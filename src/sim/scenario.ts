@@ -2,7 +2,7 @@ import { simulateBlast, type Fragments } from './blast'
 import { lastFireMs } from './fire'
 import { generatePattern } from './pattern'
 import type { Dem } from './dem'
-import { autoBench, findBench, siteFromBench, type BenchFit, type Site } from './site'
+import { autoBench, nearestBench, siteFromBench, type BenchFit, type Site } from './site'
 import { generateTerrain, terrainFromDem } from './terrain'
 import { validateScenarioParams } from './validate'
 import { DEFAULT_PATTERN, DEFAULT_TERRAIN, type DrillHole, type PatternOptions, type Terrain, type TerrainOptions } from './types'
@@ -35,24 +35,31 @@ export interface Scenario {
   /** On the pit: the frame the model runs in, and the DEM it sits on. Null on the generated bench. */
   site: Site | null
   dem: Dem | null
+  /** On the pit, from an asked-for point: how far the crest is from it, metres. Null otherwise. */
+  movedM: number | null
 }
 
 /** Why a pit scenario could not be built at the asked-for point. */
 export class NoBenchError extends Error {}
 
 const autoCache = new WeakMap<Dem, BenchFit | null>()
-function benchFor(dem: Dem, pick: { x: number; z: number } | undefined): BenchFit {
+/** Keeps a bench far enough inside the DEM for the blast patch and the pile. */
+const EDGE_M = 100
+
+/** The bench for a pit scenario: picked automatically, or the one nearest the asked-for point. */
+function benchFor(dem: Dem, pick: { x: number; z: number } | undefined): { bench: BenchFit; moved: number | null } {
   if (!pick) {
     if (!autoCache.has(dem)) autoCache.set(dem, autoBench(dem))
     const b = autoCache.get(dem)
     if (!b) throw new NoBenchError('No bench found on this surface.')
-    return b
+    return { bench: b, moved: null }
   }
-  if (!dem.inside(pick.x, pick.z, 100)) throw new NoBenchError('Too close to the edge of the terrain.')
-  const b = findBench(dem.heightAt, pick.x, pick.z)
-  if (!b) throw new NoBenchError('No bench face near that point. Try closer to a wall.')
-  if (!dem.inside(b.x, b.z, 100)) throw new NoBenchError('Too close to the edge of the terrain.')
-  return b
+  // A point near the edge is pulled in, then the search runs from there.
+  const px = Math.max(-dem.halfX + EDGE_M, Math.min(dem.halfX - EDGE_M, pick.x))
+  const pz = Math.max(-dem.halfZ + EDGE_M, Math.min(dem.halfZ - EDGE_M, pick.z))
+  const near = nearestBench(dem.heightAt, px, pz, (b) => dem.inside(b.x, b.z, EDGE_M), dem)
+  if (!near) throw new NoBenchError('No bench found on this surface.')
+  return { bench: near.bench, moved: Math.hypot(near.bench.x - pick.x, near.bench.z - pick.z) }
 }
 
 const COLS_BY_SCALE = [20, 30, 40, 50] as const
@@ -90,15 +97,18 @@ export function buildScenario(p: ScenarioParams, dem: Dem | null = null): Scenar
     width: Math.max(baseWidth, Math.ceil(span + TERRAIN_MARGIN_M)),
   }
   let site: Site | null = null
+  let movedM: number | null = null
   let terrain
   if (p.ground === 'pit') {
     if (!dem) throw new Error('Scenario params: the pit needs its terrain loaded first')
-    site = siteFromBench(benchFor(dem, p.site))
+    const found = benchFor(dem, p.site)
+    site = siteFromBench(found.bench)
+    movedM = found.moved
     terrain = terrainFromDem(dem, site, terrainOpts)
   } else terrain = generateTerrain(terrainOpts)
   const holes = generatePattern(terrain, pattern)
   const fragments = simulateBlast(terrain, holes, { fragmentsPerHole: FRAGMENTS_BY_SCALE[s], seed: p.seed })
   let maxFlight = 0
   for (let i = 0; i < fragments.count; i++) if (fragments.flightMs[i] > maxFlight) maxFlight = fragments.flightMs[i]
-  return { terrain, holes, fragments, pattern, durationMs: lastFireMs(holes) + maxFlight + 500, params: p, site, dem: site ? dem : null }
+  return { terrain, holes, fragments, pattern, durationMs: lastFireMs(holes) + maxFlight + 500, params: p, site, dem: site ? dem : null, movedM }
 }

@@ -6,7 +6,7 @@ import { hasFired } from '../sim/fire'
 import type { Scenario } from '../sim/scenario'
 import type { DrillHole } from '../sim/types'
 import { useBlast } from '../state/store'
-import { scenarioMatrix } from './siteFrame'
+import { scenarioMatrix, worldY } from './siteFrame'
 
 /** True in dev and in the e2e build (VITE_E2E=1); false, and tree-shaken, in the deployed build. */
 export const TEST_HOOKS = import.meta.env.DEV || import.meta.env.VITE_E2E === '1'
@@ -30,9 +30,11 @@ export function TestHooks({ scenario }: { scenario: Scenario }) {
   const gl = useThree((s) => s.gl)
   const controls = useThree((s) => s.controls) as OrbitControlsImpl | null
   const invalidate = useThree((s) => s.invalidate)
+  const exaggeration = useBlast((s) => s.exaggeration)
   useEffect(() => {
     const v = new Vector3()
-    const m = scenarioMatrix(scenario)
+    const k = scenario.dem ? exaggeration : 1
+    const m = scenarioMatrix(scenario, k)
     const toScreen = () => {
       camera.updateMatrixWorld()
       v.project(camera)
@@ -81,7 +83,7 @@ export function TestHooks({ scenario }: { scenario: Scenario }) {
         return w > 0 && hi > lo ? (hi - lo) / w : null
       },
       groundScreen(x, z) {
-        v.set(x, scenario.dem ? scenario.dem.heightAt(x, z) : scenario.terrain.heightAt(x, z), z)
+        v.set(x, scenario.dem ? worldY(scenario.dem, k, scenario.dem.heightAt(x, z)) : scenario.terrain.heightAt(x, z), z)
         return toScreen()
       },
       orbitBy(rad) {
@@ -103,6 +105,6 @@ export function TestHooks({ scenario }: { scenario: Scenario }) {
     return () => {
       if (w.__blastTest === hooks) delete w.__blastTest
     }
-  }, [scenario, camera, gl, controls, invalidate])
+  }, [scenario, camera, gl, controls, invalidate, exaggeration])
   return null
 }

@@ -1,8 +1,7 @@
 import { RAMP_CSS } from '../scene/colors'
 import { useBlast } from '../state/store'
-import { ScaleBar } from './ScaleBar'
 
-/** Legend for loaded points: the height ramp in the file's own levels, the count and the scale bar. */
+/** Legend for loaded points: the height ramp in the file's own levels. */
 export function PointsLegend() {
   const cloud = useBlast((s) => s.cloud)
   if (!cloud) return null
@@ -17,7 +16,6 @@ export function PointsLegend() {
         <span>{hi}</span>
       </div>
       <p className="legend-note">Centred on the points' own centroid</p>
-      <ScaleBar />
     </div>
   )
 }

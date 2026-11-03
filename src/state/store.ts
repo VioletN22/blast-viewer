@@ -10,6 +10,16 @@ export type { Ground, Scale }
 export type ColorBy = 'movement' | 'delay'
 /** What the camera frames: the whole pit, or the blast block. */
 export type View = 'pit' | 'blast'
+export type Exaggeration = 1 | 1.5 | 2
+
+/** A crest further than this from the click gets a note saying where the blast went. */
+const MOVED_NOTE_M = 40
+
+/** The note after a click on the pit: where the blast went, when it is not under the click. */
+export function movedNote(movedM: number | null): string | null {
+  if (movedM === null || movedM <= MOVED_NOTE_M) return null
+  return `Placed on the nearest face, ${Math.round(movedM / 10) * 10} m away.`
+}
 
 /** Base path of the baked Super Pit DEM (.png grid and .json metadata). */
 export const PIT_DEM_PATH = `${import.meta.env.BASE_URL}terrain/super-pit`
@@ -37,8 +47,11 @@ export interface BlastState {
   view: View
   /** Bumped whenever the camera should frame `view` again. */
   viewSeq: number
-  /** Why the last click on the pit did not move the blast, or null. */
+  /** Where the last click on the pit put the blast when it is not where the click was, or why nothing moved. */
   siteNote: string | null
+  siteNoteError: boolean
+  /** Vertical exaggeration on the pit. */
+  exaggeration: Exaggeration
   /** Loaded survey points; while set, the view shows them instead of the terrain and the blast. */
   cloud: PointCloud | null
   /** Where the loaded points came from. */
@@ -70,6 +83,7 @@ export interface BlastState {
   /** Lays the blast on the bench nearest (x, z) on the pit and frames it. */
   placeSite(x: number, z: number): void
   setView(v: View): void
+  setExaggeration(k: Exaggeration): void
   /** Parses a points file, or the sample when no file is given, and shows it. */
   openPoints(file?: File): Promise<void>
   closePoints(): void
@@ -97,6 +111,8 @@ export const useBlast = create<BlastState>()((set, get) => ({
   view: 'blast',
   viewSeq: 0,
   siteNote: null,
+  siteNoteError: false,
+  exaggeration: 1.5,
   cloud: null,
   cloudSource: null,
   cloudBusy: false,
@@ -161,7 +177,7 @@ export const useBlast = create<BlastState>()((set, get) => ({
   },
   setGround: async (ground) => {
     const { scenario } = get()
-    set({ cloud: null, cloudSource: null, cloudNote: null, siteNote: null })
+    set({ cloud: null, cloudSource: null, cloudNote: null, siteNote: null, siteNoteError: false })
     if (!scenario || (scenario.params.ground ?? 'bench') === ground) {
       set({ ground })
       return
@@ -182,7 +198,7 @@ export const useBlast = create<BlastState>()((set, get) => ({
       next = buildScenario(params, dem)
     } catch (e) {
       if (e instanceof NoBenchError) {
-        set({ siteNote: e.message })
+        set({ siteNote: e.message, siteNoteError: true })
         return
       }
       throw e
@@ -194,13 +210,14 @@ export const useBlast = create<BlastState>()((set, get) => ({
     if (!scenario || !scenario.dem) return
     try {
       const next = buildScenario({ ...scenario.params, site: { x, z } }, scenario.dem)
-      set({ scenario: next, timeMs: 0, playing: false, selectedHoleId: null, siteNote: null, view: 'blast', viewSeq: get().viewSeq + 1 })
+      set({ scenario: next, timeMs: 0, playing: false, selectedHoleId: null, siteNote: movedNote(next.movedM), siteNoteError: false, view: 'blast', viewSeq: get().viewSeq + 1 })
     } catch (e) {
-      if (e instanceof NoBenchError) set({ siteNote: e.message })
+      if (e instanceof NoBenchError) set({ siteNote: e.message, siteNoteError: true })
       else throw e
     }
   },
   setView: (view) => set({ view, viewSeq: get().viewSeq + 1 }),
+  setExaggeration: (exaggeration) => set({ exaggeration, viewSeq: get().viewSeq + 1 }),
   openPoints: async (file) => {
     set({ cloudBusy: true, cloudNote: null })
     try {

@@ -27,6 +27,10 @@ export interface Terrain {
   heightAt(x: number, z: number): number
   /** 'synthetic' for the generated bench, 'dem' for a real surface resampled at a site. */
   source: 'synthetic' | 'dem'
+  /** On a real surface: the model height of the floor plane under (x, z), so heights can be read as surface heights. */
+  floorAt?: (x: number, z: number) => number
+  /** On a real surface: the lowest and highest ground of the whole DEM, for the height tint. */
+  range?: [number, number]
 }
 
 export interface PatternOptions {

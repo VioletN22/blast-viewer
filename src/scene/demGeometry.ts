@@ -6,7 +6,10 @@ import { groundColor } from './terrainGeometry'
 
 /**
  * Grid mesh of a DEM: positions in metres (x east, y up, z south), normals
- * from central differences, and the same slope colours as the blast patch.
+ * from central differences at the grid's real spacing in metres, and the same
+ * colours as the blast patch. The normals come from a lightly smoothed copy of
+ * the grid: the source is 30 m data resampled to 8 m, and its steps would
+ * otherwise shade as dark streaks down the walls.
  * The index is set separately (demIndex), so moving the blast only rebuilds that.
  */
 export function buildDemGeometry(dem: Dem): BufferGeometry {
@@ -16,6 +19,7 @@ export function buildDemGeometry(dem: Dem): BufferGeometry {
   const nor = new Float32Array(n * 3)
   const col = new Float32Array(n * 3)
   const c = new Color()
+  const smooth = smoothed(heights, cols, rows, NORMAL_SMOOTH_CELLS)
   for (let j = 0; j < rows; j++) {
     for (let i = 0; i < cols; i++) {
       const k = j * cols + i
@@ -26,13 +30,13 @@ export function buildDemGeometry(dem: Dem): BufferGeometry {
       const ir = Math.min(cols - 1, i + 1)
       const jd = Math.max(0, j - 1)
       const ju = Math.min(rows - 1, j + 1)
-      const dx = (heights[j * cols + ir] - heights[j * cols + il]) / ((ir - il) * cell)
-      const dz = (heights[ju * cols + i] - heights[jd * cols + i]) / ((ju - jd) * cell)
+      const dx = (smooth[j * cols + ir] - smooth[j * cols + il]) / ((ir - il) * cell)
+      const dz = (smooth[ju * cols + i] - smooth[jd * cols + i]) / ((ju - jd) * cell)
       const len = Math.hypot(dx, 1, dz)
       nor[k * 3] = -dx / len
       nor[k * 3 + 1] = 1 / len
       nor[k * 3 + 2] = -dz / len
-      groundColor(1 / len, c).toArray(col, k * 3)
+      groundColor(1 / len, (heights[k] - dem.minY) / Math.max(1, dem.maxY - dem.minY), c).toArray(col, k * 3)
     }
   }
   const g = new BufferGeometry()
@@ -42,6 +46,30 @@ export function buildDemGeometry(dem: Dem): BufferGeometry {
   g.setIndex(demIndex(dem, null, null))
   g.computeBoundingSphere()
   return g
+}
+
+/** Box blur radius, in cells, of the grid the normals are taken from. */
+const NORMAL_SMOOTH_CELLS = 2
+
+/** Separable box blur of a grid, clamped at the edges. */
+function smoothed(src: Float32Array | number[], cols: number, rows: number, r: number): Float32Array {
+  const tmp = new Float32Array(cols * rows)
+  const out = new Float32Array(cols * rows)
+  for (let j = 0; j < rows; j++) {
+    for (let i = 0; i < cols; i++) {
+      let sum = 0
+      for (let d = -r; d <= r; d++) sum += src[j * cols + Math.min(cols - 1, Math.max(0, i + d))]
+      tmp[j * cols + i] = sum / (2 * r + 1)
+    }
+  }
+  for (let j = 0; j < rows; j++) {
+    for (let i = 0; i < cols; i++) {
+      let sum = 0
+      for (let d = -r; d <= r; d++) sum += tmp[Math.min(rows - 1, Math.max(0, j + d)) * cols + i]
+      out[j * cols + i] = sum / (2 * r + 1)
+    }
+  }
+  return out
 }
 
 /**

@@ -332,6 +332,10 @@ select {
   margin-top: 0.4rem;
 }
 
+.seg-exag span {
+  font-family: var(--mono);
+}
+
 .ctl-error {
   color: #f0b4a8;
 }
@@ -497,13 +501,16 @@ select {
   color: var(--muted);
 }
 
+/* The scale bar sits on its own above the legend, so it stays when the hole card replaces the legend on a phone. */
 .scale-bar {
+  justify-self: start;
   display: flex;
   align-items: center;
   gap: 0.45rem;
-  margin-top: 0.5rem;
-  padding-top: 0.45rem;
-  border-top: 1px solid var(--line);
+  padding: 0.3rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
   font-family: var(--mono);
   font-size: 0.6875rem;
   color: var(--text-soft);

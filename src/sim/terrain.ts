@@ -1,6 +1,6 @@
 import type { Dem } from './dem'
 import { mulberry32, randRange } from './rng'
-import { siteToWorld, type Site } from './site'
+import { siteHeight, siteToWorld, type Site } from './site'
 import { DEFAULT_TERRAIN, type Terrain, type TerrainOptions } from './types'
 
 const BACK_WALL_Z = -60
@@ -59,7 +59,7 @@ function makeTerrain(options: TerrainOptions, cols: number, rows: number, height
 /**
  * The model's terrain at a site on a real surface: the DEM resampled into the
  * model frame (crest at z = 0, face toward +z) at opts.resolution, with heights
- * measured from the site's floor. The bench height and face angle come from the site.
+ * measured from the site's tilted floor plane. The bench height and face angle come from the site.
  */
 export function terrainFromDem(dem: Dem, site: Site, opts: Partial<TerrainOptions> = {}): Terrain {
   const options: TerrainOptions = {
@@ -76,9 +76,13 @@ export function terrainFromDem(dem: Dem, site: Site, opts: Partial<TerrainOption
   for (let j = 0; j < rows; j++) {
     const z = -depth / 2 + j * resolution
     for (let i = 0; i < cols; i++) {
-      const [wx, wz] = siteToWorld(site, -width / 2 + i * resolution, z)
-      heights[j * cols + i] = dem.heightAt(wx, wz) - site.floorY
+      const x = -width / 2 + i * resolution
+      const [wx, wz] = siteToWorld(site, x, z)
+      heights[j * cols + i] = dem.heightAt(wx, wz) - siteHeight(site, x, 0, z)
     }
   }
-  return makeTerrain(options, cols, rows, heights, 'dem')
+  const t = makeTerrain(options, cols, rows, heights, 'dem')
+  t.floorAt = (x, z) => siteHeight(site, x, 0, z)
+  t.range = [dem.minY, dem.maxY]
+  return t
 }

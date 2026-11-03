@@ -54,10 +54,10 @@ describe('store', () => {
     expect(s.scenario!.site!.z).not.toBeCloseTo(before.z, 0)
     expect(s.view).toBe('blast')
     expect(s.viewSeq).toBe(seq + 1)
-    // A click on flat ground far from any face leaves the blast where it is, with a reason.
-    useBlast.getState().placeSite(-400, 0)
-    expect(useBlast.getState().siteNote).toMatch(/No bench face|edge/)
-    expect(useBlast.getState().scenario).toBe(s.scenario)
+    // A click far from any face puts the blast on the nearest one and says how far it went.
+    useBlast.getState().placeSite(-300, 0)
+    expect(useBlast.getState().siteNote).toBe('Placed on the nearest face, 300 m away.')
+    expect(useBlast.getState().siteNoteError).toBe(false)
     await useBlast.getState().setGround('bench')
     expect(useBlast.getState().scenario!.site).toBeNull()
     expect(useBlast.getState().ground).toBe('bench')
