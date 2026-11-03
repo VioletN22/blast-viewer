@@ -7,6 +7,16 @@ const FACE = new Color('#4a4642')
 const FLOOR = new Color('#5c5853')
 const BLASTED = new Color('#3d3a37')
 
+/**
+ * Colour of real ground from the up component of its normal: lighter on flat
+ * ground, darker on faces. The ramp runs from about 35 degrees (darkest) to
+ * flat, since the walls in a 30 m DEM are gentler than real faces.
+ */
+export function groundColor(ny: number, out: Color): Color {
+  const flat = Math.min(1, Math.max(0, (ny - 0.82) / 0.17))
+  return out.copy(FACE).lerp(TOP, flat)
+}
+
 /** Box blur of a row-major grid, radius r, clamped at the edges. */
 function blur(src: Float32Array, cols: number, rows: number, r: number): Float32Array {
   const tmp = new Float32Array(src.length)
@@ -38,6 +48,7 @@ function blur(src: Float32Array, cols: number, rows: number, r: number): Float32
  */
 export function buildTerrainGeometry(t: Terrain, holes: DrillHole[] | null, mode: 'surface' | 'ghost' = 'surface'): BufferGeometry {
   const ghost = mode === 'ghost' && holes !== null
+  const dem = t.source === 'dem'
   const { cols, rows } = t
   const { width, depth, resolution: res, benchHeight } = t.options
   const n = cols * rows
@@ -78,10 +89,14 @@ export function buildTerrainGeometry(t: Terrain, holes: DrillHole[] | null, mode
       nor[k * 3 + 1] = 1 / len
       nor[k * 3 + 2] = -dz / len
       // Colour: bench top and floor by height, darker on steep ground, darkest on the blasted floor.
+      // Real ground takes the same slope colours as the DEM around it (groundColor), so the seam does not show.
       const ny = 1 / len
-      const flat = Math.min(1, Math.max(0, (ny - 0.55) / 0.35))
-      c.copy(FLOOR).lerp(TOP, Math.min(1, Math.max(0, h[k] / benchHeight)))
-      c.lerp(FACE, 1 - flat)
+      if (dem) groundColor(ny, c)
+      else {
+        const flat = Math.min(1, Math.max(0, (ny - 0.55) / 0.35))
+        c.copy(FLOOR).lerp(TOP, Math.min(1, Math.max(0, h[k] / benchHeight)))
+        c.lerp(FACE, 1 - flat)
+      }
       if (blasted[k]) c.lerp(BLASTED, 0.7)
       col[k * 3] = c.r
       col[k * 3 + 1] = c.g

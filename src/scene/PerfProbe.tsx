@@ -28,8 +28,8 @@ export function PerfProbe() {
       if (!pushFrame(sampler, performance.now())) return
       instances = 0
       scene.traverseVisible(add)
-      const { calls, triangles } = gl.info.render
-      usePerf.setState({ fps: sampler.fps, calls, triangles, instances })
+      const { calls, triangles, points } = gl.info.render
+      usePerf.setState({ fps: sampler.fps, calls, triangles, instances, points })
     }
     return () => {
       scene.onAfterRender = prevHook

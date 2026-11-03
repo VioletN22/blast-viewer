@@ -328,6 +328,54 @@ select {
   font-family: var(--mono);
 }
 
+.seg-view {
+  margin-top: 0.4rem;
+}
+
+.ctl-error {
+  color: #f0b4a8;
+}
+
+.btn-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.35rem;
+}
+
+.btn {
+  padding: 0.3rem 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: #0e1013;
+  color: var(--text-soft);
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled) {
+  color: #fff;
+  border-color: var(--line-strong);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.btn-wide {
+  width: 100%;
+  margin-top: 0.4rem;
+}
+
+/* The points file input is opened by the Open file button. */
+.file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
 .ctl-switches {
   display: grid;
   gap: 0.15rem;
@@ -447,6 +495,25 @@ select {
   margin: 0.45rem 0 0;
   font-size: 0.6875rem;
   color: var(--muted);
+}
+
+.scale-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 0.5rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 0.6875rem;
+  color: var(--text-soft);
+}
+
+.scale-bar-line {
+  height: 5px;
+  border: 1px solid var(--text-soft);
+  border-top: 0;
+  box-sizing: border-box;
 }
 
 .legend-keys {
